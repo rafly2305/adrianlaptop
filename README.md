@@ -1,78 +1,39 @@
-# Sistem Informasi Adrian Laptop Store — Project KP
+# Adrian Laptop Store — Sistem Informasi Penjualan, Inventory, Customer Service & Warranty
 
-Website internal berbasis PHP + MySQL + Bootstrap 5 untuk POS, Inventory, Customer Service, Quality Control, dan Warranty. Fokus implementasi satu cabang.
+Aplikasi internal (bukan marketplace). Next.js 15 (App Router) + TypeScript + Tailwind + Supabase (PostgreSQL, Auth, RLS) di Vercel.
 
-## Instalasi XAMPP
-1. Salin folder `adrian-laptop-kp` ke `C:\xampp\htdocs\`.
-2. Jalankan Apache dan MySQL dari XAMPP Control Panel.
-3. Buka phpMyAdmin (`http://localhost/phpmyadmin`).
-4. Import `database/adrian_laptop_kp.sql`.
-5. Pastikan `config/database.php` sesuai: host `localhost`, database `adrian_laptop_kp`, user `root`, password kosong (default XAMPP).
-6. Buka `http://localhost/adrian-laptop-kp/login.php`.
-
-## Instalasi Laragon
-Letakkan folder di `C:\laragon\www\`, import SQL melalui HeidiSQL/phpMyAdmin, lalu akses URL project Laragon.
-
-## Akun Testing
-
-- Owner/Boss: `boss` / `boss123`
-- Admin: `admin` / `admin123`
-- Staff: `staff` / `staff123`
-- Warranty: `warranty` / `warranty123`
-
-## Alur Pengujian
-1. Login sebagai Staff.
-2. Inventory > Tambah Laptop.
-3. Barang Masuk / QC > buat pengecekan unit.
-4. POS > pilih unit tersedia > isi customer > proses transaksi.
-5. Sistem membuat invoice, mengubah unit menjadi Terjual, dan membuat warranty 1 bulan.
-6. Warranty > Ajukan Klaim.
-7. Logout lalu login sebagai Petugas Warranty.
-8. Klaim Warranty > Detail > isi pemeriksaan dan ubah status sampai Selesai/Ditolak.
-
-## Catatan Data
-Nama/model produk awal mengacu pada daftar inventory yang diberikan untuk project. Harga di seed database adalah **harga simulasi**, bukan harga asli Adrian Laptop Store. Jangan dipresentasikan sebagai data harga perusahaan.
+> **Status jujur:** kode ini ditulis tanpa akses internet/PostgreSQL di lingkungan penyusun, jadi **belum pernah di-build atau dijalankan**. Yang sudah diverifikasi: sintaks TypeScript (0 error sintaks), keseimbangan SQL, dan konsistensi seed (49 unit Cidodol, 46 pcs aksesori, simulasi stok demo). Lihat `docs/TESTING.md` untuk daftar yang **wajib Anda jalankan** sebelum go-live.
 
 ## Struktur
-- `index.php` — dashboard + modul utama/router sederhana
-- `login.php`, `logout.php` — autentikasi
-- `config/database.php` — koneksi PDO
-- `includes/auth.php` — session, RBAC, CSRF, escaping
-- `assets/` — CSS/JS
-- `database/adrian_laptop_kp.sql` — schema + akun testing + seed
+```
+app/                 halaman (login, dashboard, inventory, pos, sales, service, warranty, reports, settings, search, api)
+components/          UI (Shell, ActionForm, PosClient, Charts, …)
+lib/                 env, db (retry terbatas), errors terpusat, permissions, konteks cabang/role
+supabase/migrations/ 0001 skema · 0002 RLS · 0003 fungsi transaksional · 0004 audit trigger
+supabase/seed/       00 dasar · 01 Cidodol (nyata) · 02 demo (sintetis) · 99 reset demo
+supabase/tests/      rls_and_rpc_test.sql (dijalankan di staging, di-rollback)
+scripts/             gen_seed.py (pembuat seed) · bootstrap-admin.mjs (Super Admin pertama)
+docs/                DEPLOY.md · TESTING.md · MIGRASI_DARI_PHP.md
+```
 
-## Teknologi
-PHP 8+, MySQL/MariaDB, Bootstrap 5 CDN, PDO prepared statements.
+## Prinsip desain
+- **Cabang & role di database, bukan di UI.** RLS memakai `user_branch_access` + role. Login saja tidak memberi akses.
+- **Mutasi kritis = fungsi Postgres transaksional** (`create_sale`, `void_sale`, `return_sale_item`, `create_transfer`, `receive_transfer`, `adjust_stock`, `receive_unit`, …) dengan row lock. Unit berseri tidak bisa terjual dua kali (juga dijaga unique index parsial). Stok tidak bisa negatif (CHECK + validasi).
+- **Data nyata vs demo:** kolom `data_origin` di semua tabel operasional. Aplikasi default menampilkan **data nyata**; pindah ke demo lewat pemilih di header (bertanda MODE DEMO). Transfer real↔demo ditolak. `supabase/seed/99_reset_demo.sql` / tombol Reset di Pengaturan hanya menghapus demo.
+- **Nomor seri:** `serial_number` (asli, unik, boleh kosong) dipisah dari `internal_asset_code` (`UNIT-CDL-000001`). Status: belum ada / belum diverifikasi / terverifikasi / sintetis demo. Tidak ada nomor seri karangan.
+- **Error database tidak disamarkan jadi “kosong”**: query gagal → halaman error + tombol coba lagi; retry hanya untuk gangguan sementara (maks 2x), timeout 10 dtk; detail teknis hanya di log server.
+- **Rahasia:** `SUPABASE_SERVICE_ROLE_KEY` hanya dibaca di server (`lib/supabase/admin.ts`, `server-only`). Tidak ada password default di kode.
 
+## Role
+| Role | Cakupan |
+|---|---|
+| Super Admin/CEO | semua cabang, pengaturan, akun, reset demo |
+| Admin cabang | inventory, POS, void/retur, service, laporan — cabangnya saja |
+| Staf Inventory | penerimaan, serial, penyesuaian, transfer |
+| Sales | POS (diskon dibatasi pengaturan), retur, tiket |
+| CS/Warranty | tiket & garansi |
+| Finance | transaksi & laporan (baca) |
+| HR | tersedia sebagai role; **belum punya modul** (fitur lama tidak memerlukannya) dan tidak dapat membaca data toko |
 
-## Fitur V2
-- Logo Adrian Laptop pada login dan sidebar
-- Role Owner/Boss dengan dashboard monitoring
-- Grafik penjualan dengan pilihan 30 Hari, Bulanan, dan Tahunan (lokal, tanpa Chart.js)
-- Grafik model laptop terlaris
-- Global search invoice/customer/unit/serial
-- Notification center
-- Activity log untuk Admin dan Owner
-- Dashboard lebih modern dan informatif
-- Sistem tetap difokuskan pada satu cabang objek KP
-
-Catatan: nilai harga/omzet pada data demo memakai harga simulasi karena harga asli perusahaan tidak diberikan.
-
-## Pembaruan V3
-- Logo Adrian Laptop diperbarui sesuai file yang diberikan.
-- Inventory mempertahankan 50 unit laptop dan nama dari daftar inventory sumber.
-- Gambar/thumbnail laptop tersedia secara lokal pada setiap data inventory.
-- Dashboard memiliki data transaksi awal agar grafik penjualan dan produk terlaris langsung terisi.
-- Owner dapat melihat ringkasan performa 6 cabang: Cidodol, Ciledug, Meruya, Pamulang, Cisauk, dan Bintaro.
-- Operasional inventory utama tetap berfokus pada Cabang Cidodol.
-
-
-## V5
-- Grafik Penjualan memiliki pilihan 30 Hari, Bulanan, dan Tahunan.
-- Data awal tetap hanya menggunakan transaksi yang sudah tersedia (sekitar 30 hari terakhir); tidak ditambahkan transaksi palsu untuk bulan/tahun lama.
-- Rekap bulanan dan tahunan otomatis berkembang ketika transaksi baru masuk ke database.
-
----
-
-## V6 — Deployment Vercel
-Versi ini sudah dilengkapi `Dockerfile.vercel` dan konfigurasi database berbasis Environment Variables. Panduan lengkap ada di `README-VERCEL.md`.
+## Yang sengaja belum ditetapkan (butuh keputusan pemilik)
+Harga beli/jual, tanggal masuk, pemasok, serial pabrikan, aturan masa garansi toko, batas diskon Sales (default 0%), batas stok minimal per produk. Semuanya kosong/“belum diverifikasi” sampai diisi di aplikasi — **tidak diisi dengan angka tebakan**.
