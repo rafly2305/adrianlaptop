@@ -1,6 +1,8 @@
 import { AppError, isTransient, logServer } from './errors';
 
-type Res<T> = { data: T | null; error: { message: string; code?: string } | null };
+// data sengaja bertipe unknown: bentuk hasil join Supabase diatur lewat generic T di pemanggil (run<T>),
+// karena proyek ini belum memakai tipe database hasil generate.
+type Res = { data: unknown; error: { message: string; code?: string } | null };
 
 /**
  * Jalankan query. Error TIDAK pernah disamarkan menjadi data kosong:
@@ -8,7 +10,7 @@ type Res<T> = { data: T | null; error: { message: string; code?: string } | null
  *  - gagal lain => lempar AppError('db'), detail hanya ke log server.
  * Untuk mutasi gunakan { retries: 0 } agar tidak mengulang operasi non-idempoten.
  */
-export async function run<T>(label: string, fn: () => PromiseLike<Res<T>>, opts: { retries?: number } = {}): Promise<T> {
+export async function run<T>(label: string, fn: () => PromiseLike<Res>, opts: { retries?: number } = {}): Promise<T> {
   const max = opts.retries ?? 2;
   let last: unknown;
   for (let i = 0; i <= max; i++) {
@@ -28,7 +30,7 @@ export async function run<T>(label: string, fn: () => PromiseLike<Res<T>>, opts:
 }
 
 /** Mutasi/RPC: tidak diulang otomatis; pesan error asli (kode RPC) dipertahankan untuk dipetakan ke pesan ramah. */
-export async function mutate<T>(label: string, fn: () => PromiseLike<Res<T>>): Promise<T> {
+export async function mutate<T>(label: string, fn: () => PromiseLike<Res>): Promise<T> {
   try {
     const { data, error } = await fn();
     if (error) { logServer(label, error); throw error; }
