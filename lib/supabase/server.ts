@@ -16,6 +16,6 @@ export async function createClient() {
         try { list.forEach(({ name, value, options }) => store.set(name, value, options)); } catch { /* dipanggil dari Server Component: abaikan, middleware yang menyegarkan sesi */ }
       },
     },
-    global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) }) },
+    global: { fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) }) },
   });
 }

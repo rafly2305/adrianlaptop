@@ -33,7 +33,7 @@ export function Shell({ nav, user, role, demo, controls, notifications, logout, 
       <aside className={`hidden shrink-0 bg-ink text-white transition-[width] lg:block ${collapsed ? 'w-16' : 'w-60'}`}>
         <div className={`flex items-center px-3 ${collapsed ? 'h-16 justify-center' : 'h-24 justify-between'}`}>
           {!collapsed && (
-            <Image src="/logo1.png" alt="Adrian Laptop Store" width={231} height={120} className="h-16 w-auto rounded-md bg-white px-2 py-1" priority />
+            <Image src="/logo1.png" alt="Adrian Laptop Store" width={2172} height={724} className="h-16 w-auto rounded-md bg-white px-2 py-1" priority />
           )}
           <button type="button" className="rounded p-2 text-ink-300 hover:bg-ink-700" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}>
             {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
@@ -47,7 +47,7 @@ export function Shell({ nav, user, role, demo, controls, notifications, logout, 
           <button className="absolute inset-0 bg-black/50" aria-label="Tutup menu" onClick={() => setOpen(false)} />
           <aside className="relative h-full w-64 bg-ink text-white">
             <div className="flex h-24 items-center justify-between px-3">
-              <Image src="/logo.png" alt="Adrian Laptop Store" width={231} height={120} className="h-16 w-auto rounded-md bg-white px-2 py-1" />
+              <Image src="/logo1.png" alt="Adrian Laptop Store" width={2172} height={724} className="h-16 w-auto rounded-md bg-white px-2 py-1" />
               <button className="rounded p-2 hover:bg-ink-700" onClick={() => setOpen(false)} aria-label="Tutup"><X size={18} /></button>
             </div>
             <Nav mini={false} />

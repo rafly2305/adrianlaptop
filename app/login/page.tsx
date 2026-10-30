@@ -33,7 +33,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       </section>
       <section className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
-          <Image src="/logo.png" alt="Adrian Laptop Store" width={140} height={48} className="mb-6 h-12 w-auto lg:hidden" />
+          <Image src="/logo1.png" alt="Adrian Laptop Store" width={2172} height={724} className="mb-6 h-12 w-auto lg:hidden" />
           <h1 className="text-2xl font-semibold">Masuk</h1>
           <p className="mb-6 mt-1 text-sm text-ink-500">Sistem Informasi Adrian Laptop Store — khusus pengguna internal.</p>
           {notice && <div role="alert" className="mb-4 rounded-md bg-warn-soft px-3 py-2 text-sm text-warn">{notice}</div>}
