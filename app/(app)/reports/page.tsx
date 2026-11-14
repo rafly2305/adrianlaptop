@@ -13,7 +13,7 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
   const from = isYmd(sp.from) ? sp.from : addDays(to, -29);
   const sb = ctx.sb, ids = ctx.branchIds, scope = ctx.scope;
   const [sales, refunds, items] = await Promise.all([
-    run<Row[]>('lap penjualan', () => sb.from('sales').select('sold_at,total,discount,status,payment_method,payment_status,branch_id').eq('data_origin', scope).in('branch_id', ids).gte('sold_at', startOfDay(from)).lte('sold_at', endOfDay(to)).limit(10000)),
+    run<Row[]>('lap penjualan', () => sb.from('sales').select('sold_at,total,discount,tax,status,payment_method,payment_status,branch_id').eq('data_origin', scope).in('branch_id', ids).gte('sold_at', startOfDay(from)).lte('sold_at', endOfDay(to)).limit(10000)),
     run<Row[]>('lap refund', () => sb.from('returns').select('refund_amount,sales!inner(branch_id)').eq('data_origin', scope).in('sales.branch_id', ids).gte('created_at', startOfDay(from)).lte('created_at', endOfDay(to)).limit(10000)),
     run<Row[]>('lap item', () => sb.from('sale_items').select('qty,line_total,products(name,sku),sales!inner(sold_at,branch_id,data_origin,status)').eq('sales.data_origin', scope).in('sales.branch_id', ids).neq('sales.status', 'void').gte('sales.sold_at', startOfDay(from)).lte('sales.sold_at', endOfDay(to)).limit(10000)),
   ]);
@@ -21,6 +21,7 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
   const voided = sales.filter((s) => s.status === 'void');
   const gross = valid.reduce((a, s) => a + Number(s.total), 0);
   const disc = valid.reduce((a, s) => a + Number(s.discount), 0);
+  const taxSum = valid.reduce((a, s) => a + Number(s.tax ?? 0), 0);
   const ref = refunds.reduce((a, r) => a + Number(r.refund_amount), 0);
   const group = (key: (s: Row) => string) => { const m = new Map<string, { n: number; t: number }>(); valid.forEach((s) => { const k = key(s); const x = m.get(k) ?? { n: 0, t: 0 }; x.n++; x.t += Number(s.total); m.set(k, x); }); return [...m.entries()].sort((a, b) => b[1].t - a[1].t); };
   const byDay = group((s) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date(s.sold_at))).sort((a, b) => a[0].localeCompare(b[0]));
@@ -43,7 +44,9 @@ export default async function Reports({ searchParams }: { searchParams: Promise<
         <Stat label="Omzet bruto" value={rupiah(gross)} hint={`${nf(valid.length)} transaksi (tanpa yang dibatalkan)`} />
         <Stat label="Refund retur" value={rupiah(ref)} hint="Retur yang dicatat pada periode ini" />
         <Stat label="Omzet neto" value={rupiah(gross - ref)} hint="Bruto − refund" />
-        <Stat label="Dibatalkan" value={nf(voided.length)} hint={`Total diskon diberikan ${rupiah(disc)}`} />
+        <Stat label="Dibatalkan" value={nf(voided.length)} hint="Transaksi berstatus batal" />
+        <Stat label="Total diskon" value={rupiah(disc)} hint="Diskon item + diskon transaksi" />
+        <Stat label="Total pajak" value={rupiah(taxSum)} hint="Sudah termasuk dalam omzet bruto" />
       </div>
       {valid.length === 0 ? <div className="mt-4"><Empty title="Tidak ada transaksi pada periode ini" /></div> : (
         <div className="mt-4 grid gap-4 lg:grid-cols-2">

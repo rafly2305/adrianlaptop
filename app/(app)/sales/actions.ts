@@ -59,7 +59,8 @@ const posSchema = z.object({
   branch_id: uuid,
   customer: z.object({ name: z.string().max(120).optional(), phone: z.string().max(30).optional(), address: z.string().max(300).optional() }),
   items: z.array(z.object({ product_id: uuid, unit_id: z.string().uuid().optional(), qty: z.number().int().min(1).max(1000), unit_price: z.number().min(0).max(1e10), discount: z.number().min(0).max(1e10) })).min(1, 'Keranjang kosong').max(100),
-  extra_discount: z.number().min(0).max(1e10).default(0),
+  discount_percent: z.number().min(0, 'Diskon minimal 0%').max(100, 'Diskon maksimal 100%').default(0),
+  tax_percent: z.number().min(0, 'Pajak minimal 0%').max(100, 'Pajak maksimal 100%').default(0),
   kind: z.enum(['cash', 'noncash']),
   method: z.string().min(1, 'Pilih metode pembayaran').max(40),
   tendered: z.number().min(0).max(1e11).optional(),
@@ -83,8 +84,10 @@ export async function createSalePosAction(_p: ActionState, fd: FormData): Promis
     if (!isCash && v.method.toLowerCase() === 'tunai') throw new AppError('validation', 'Pilih metode non-tunai.');
     const id = await mutate<string>('create_sale_pos', () => ctx.sb.rpc('create_sale_pos', {
       p_branch: v.branch_id, p_customer: v.customer, p_items: v.items, p_method: v.method, p_tendered: isCash ? v.tendered ?? 0 : null,
-      p_reference: v.reference ?? null, p_pay_note: v.pay_note ?? null, p_extra_discount: v.extra_discount, p_notes: v.notes ?? null }));
+      p_reference: v.reference ?? null, p_pay_note: v.pay_note ?? null, p_discount_pct: v.discount_percent, p_tax_pct: v.tax_percent, p_notes: v.notes ?? null }));
+    // Sampai di sini hanya bila RPC berhasil (transaksi sudah tersimpan); kegagalan melempar error sebelum ini.
+    const sale = await ctx.sb.from('sales').select('invoice_no,total').eq('id', id).maybeSingle();
     revalidatePath('/sales'); revalidatePath('/inventory', 'layout'); revalidatePath('/');
-    redirect(`/sales/${id}`);
+    return { ok: true, message: 'Pembayaran berhasil.', saleId: id, invoice: sale.data?.invoice_no ?? '', total: Number(sale.data?.total ?? 0) };
   });
 }

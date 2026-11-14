@@ -4,6 +4,9 @@
 1. `supabase/migrations/0005_cidodol_prices.sql`  (estimasi harga Cidodol; tidak menimpa harga yang sudah ada)
 2. `supabase/migrations/0006_transfer_pending.sql` (status transfer "Menunggu")  ← jalankan sendiri, tunggu sukses
 3. `supabase/migrations/0007_inventory_pos.sql`    (barang keluar, stok opname, transfer bertahap, pembayaran POS, kolom foto, riwayat stok before/after)
+4. `supabase/migrations/0008_percent_discount_tax.sql` (diskon & pajak dalam PERSEN di POS)  ← WAJIB sebelum kode baru dipakai
+
+Data demo: jalankan `supabase/seed/02_demo.sql` bila data demo kosong (aman diulang; hanya cabang demo). Cabang & produk Cidodol tidak disentuh.
 
 Bucket foto: 0007 mencoba membuat bucket publik `product-images`. Jika muncul NOTICE gagal, buat manual di
 Supabase → Storage → New bucket → nama `product-images` → centang Public.

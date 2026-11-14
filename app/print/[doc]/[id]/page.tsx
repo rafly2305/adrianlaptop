@@ -28,6 +28,10 @@ export default async function PrintDoc({ params, searchParams }: { params: Promi
   const company = st('company_name', 'Adrian Laptop Store'), address = st('company_address'), phone = st('company_phone'), footer = st('receipt_footer', 'Terima kasih');
   const items = allItems.some((i) => i.active) ? allItems.filter((i) => i.active) : allItems;
   const pay = pays[0];
+  const itemDisc = items.reduce((a, i) => a + Number(i.discount), 0);
+  const txDisc = Math.max(Number(s.discount) - itemDisc, 0);
+  const dPct = Number(s.discount_percent) > 0 ? ` (${Number(s.discount_percent)}%)` : '';
+  const tPct = Number(s.tax_percent) > 0 ? ` (${Number(s.tax_percent)}%)` : '';
   const cust = s.customers as Row | null;
   const w = one(sp.w) === '58' ? 58 : 80;
   const sj = `SJ-${String(s.invoice_no).replace(/^INV-/, '')}`;
@@ -66,8 +70,9 @@ export default async function PrintDoc({ params, searchParams }: { params: Promi
           </div>))}
           <hr />
           <div className="r"><span>Subtotal</span><span>{rupiah(s.subtotal)}</span></div>
-          {Number(s.discount) > 0 && <div className="r"><span>Diskon</span><span>-{rupiah(s.discount)}</span></div>}
-          {Number(s.tax) > 0 && <div className="r"><span>Pajak</span><span>{rupiah(s.tax)}</span></div>}
+          {itemDisc > 0 && <div className="r"><span>Diskon item</span><span>-{rupiah(itemDisc)}</span></div>}
+          {txDisc > 0 && <div className="r"><span>Diskon{dPct}</span><span>-{rupiah(txDisc)}</span></div>}
+          {Number(s.tax) > 0 && <div className="r"><span>Pajak{tPct}</span><span>{rupiah(s.tax)}</span></div>}
           <div className="r" style={{ fontWeight: 700, fontSize: fs + 2 }}><span>TOTAL</span><span>{rupiah(s.total)}</span></div>
           <hr />
           <div className="r"><span>Bayar ({pay?.method ?? s.payment_method ?? '-'})</span><span>{rupiah(pay?.tendered ?? pay?.amount ?? s.total)}</span></div>
@@ -106,8 +111,9 @@ export default async function PrintDoc({ params, searchParams }: { params: Promi
             </tbody></table>
             <div style={{ marginLeft: 'auto', width: 260, marginTop: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Subtotal</span><span>{rupiah(s.subtotal)}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Diskon</span><span>- {rupiah(s.discount)}</span></div>
-              {Number(s.tax) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Pajak</span><span>{rupiah(s.tax)}</span></div>}
+              {itemDisc > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Diskon item</span><span>- {rupiah(itemDisc)}</span></div>}
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Diskon{dPct}</span><span>- {rupiah(txDisc)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Pajak{tPct}</span><span>{Number(s.tax) > 0 ? '+ ' : ''}{rupiah(s.tax)}</span></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 15, borderTop: '1px solid #000', marginTop: 4, paddingTop: 4 }}><span>Total</span><span>{rupiah(s.total)}</span></div>
               {pay?.tendered != null && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Dibayar</span><span>{rupiah(pay.tendered)}</span></div>}
               {pay?.change_amount != null && Number(pay.change_amount) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Kembalian</span><span>{rupiah(pay.change_amount)}</span></div>}

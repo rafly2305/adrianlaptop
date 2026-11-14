@@ -28,7 +28,7 @@ export default async function SettingsPage() {
             <Field label="Alamat toko (untuk struk & faktur)"><input className="input" name="company_address" defaultValue={st.company_address ?? ''} /></Field>
             <Field label="Telepon toko"><input className="input" name="company_phone" defaultValue={st.company_phone ?? ''} /></Field>
             <Field label="Teks kaki struk"><input className="input" name="receipt_footer" defaultValue={st.receipt_footer ?? ''} /></Field>
-            <Field label="Pajak (%)" hint="0 = pajak tidak dipakai. Jika diisi, otomatis ditambahkan pada setiap transaksi POS."><input className="input" type="number" step="0.5" min={0} max={100} name="tax_percent" defaultValue={st.tax_percent ?? 0} /></Field>
+            <Field label="Pajak (%)" hint="Nilai awal kolom Pajak (%) di POS. Kasir tetap bisa mengubahnya per transaksi. 0 = tidak dipakai."><input className="input" type="number" step="0.5" min={0} max={100} name="tax_percent" defaultValue={st.tax_percent ?? 0} /></Field>
             <Field label="Metode pembayaran (pisahkan dengan koma)" hint="Harus memuat “Tunai”. Metode lain otomatis menjadi pilihan Non-Tunai di POS."><input className="input" name="payment_methods" defaultValue={Array.isArray(st.payment_methods) ? st.payment_methods.join(', ') : ''} required /></Field>
             <SubmitButton>Simpan</SubmitButton>
           </ActionForm>

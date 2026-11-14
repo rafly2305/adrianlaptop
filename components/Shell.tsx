@@ -20,6 +20,16 @@ export function Shell({ nav, user, role, controls, notifications, logout, childr
   const hit = (m: string) => (m.startsWith('=') ? path === m.slice(1) : path === m || path.startsWith(m + '/'));
   const active = (href: string) => (baseOf(href) === '/' ? path === '/' : hit(baseOf(href)));
   const childActive = (c: NavChild) => path === baseOf(c.href) || (c.match ?? []).some(hit);
+  const Account = ({ mini }: { mini: boolean }) => (
+    <div className="border-t border-ink-700 p-3">
+      {!mini && <div className="mb-2 px-1"><div className="truncate text-sm font-medium">{user}</div><div className="truncate text-xs text-ink-300">{role}</div></div>}
+      <form action={logout}>
+        <button className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-ink-300 hover:bg-ink-700 hover:text-white ${mini ? 'justify-center' : ''}`} title="Keluar" aria-label="Keluar">
+          <LogOut size={18} aria-hidden />{!mini && <span>Keluar</span>}
+        </button>
+      </form>
+    </div>
+  );
   const Nav = ({ mini }: { mini: boolean }) => (
     <nav aria-label="Navigasi utama" className="mt-2 flex flex-col px-2 pb-6">
       {nav.map((g) => (
@@ -58,7 +68,7 @@ export function Shell({ nav, user, role, controls, notifications, logout, childr
   );
   return (
     <div className="flex min-h-screen">
-      <aside className={`sticky top-0 hidden h-screen shrink-0 overflow-y-auto bg-ink text-white transition-[width] lg:block ${collapsed ? 'w-16' : 'w-60'}`}>
+      <aside className={`sticky top-0 hidden h-screen shrink-0 bg-ink text-white transition-[width] lg:flex lg:flex-col ${collapsed ? 'w-16' : 'w-60'}`}>
         <div className={`flex items-center px-3 ${collapsed ? 'h-16 justify-center' : 'h-24 justify-between'}`}>
           {!collapsed && (
             <Image src="/logo1.png" alt="Adrian Laptop Store" width={2172} height={724} className="h-16 w-auto rounded-md bg-white px-2 py-1" priority />
@@ -67,18 +77,20 @@ export function Shell({ nav, user, role, controls, notifications, logout, childr
             {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
           </button>
         </div>
-        <Nav mini={collapsed} />
+        <div className="min-h-0 flex-1 overflow-y-auto"><Nav mini={collapsed} /></div>
+        <Account mini={collapsed} />
       </aside>
 
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true">
           <button className="absolute inset-0 bg-black/50" aria-label="Tutup menu" onClick={() => setOpen(false)} />
-          <aside className="relative h-full w-64 overflow-y-auto bg-ink text-white">
+          <aside className="relative flex h-full w-64 flex-col bg-ink text-white">
             <div className="flex h-24 items-center justify-between px-3">
               <Image src="/logo1.png" alt="Adrian Laptop Store" width={2172} height={724} className="h-16 w-auto rounded-md bg-white px-2 py-1" />
               <button className="rounded p-2 hover:bg-ink-700" onClick={() => setOpen(false)} aria-label="Tutup"><X size={18} /></button>
             </div>
-            <Nav mini={false} />
+            <div className="min-h-0 flex-1 overflow-y-auto"><Nav mini={false} /></div>
+            <Account mini={false} />
           </aside>
         </div>
       )}
@@ -93,8 +105,6 @@ export function Shell({ nav, user, role, controls, notifications, logout, childr
           <div className="ml-auto flex flex-wrap items-center gap-3">
             {controls}
             {notifications}
-            <div className="hidden text-right leading-tight sm:block"><div className="text-sm font-medium">{user}</div><div className="text-xs text-ink-500">{role}</div></div>
-            <form action={logout}><button className="rounded p-2 text-ink-500 hover:bg-canvas" aria-label="Keluar" title="Keluar"><LogOut size={18} /></button></form>
           </div>
         </header>
         <main className="flex-1 p-4 sm:p-6">{children}</main>

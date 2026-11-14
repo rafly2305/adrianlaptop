@@ -1,7 +1,8 @@
 'use client';
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useMemo, useState } from 'react';
-import { ActionForm, SubmitButton } from './ActionForm';
+import { useActionState, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { SubmitButton } from './ActionForm';
 import { createSalePosAction } from '@/app/(app)/sales/actions';
 
 const rp = (n: number) => 'Rp ' + new Intl.NumberFormat('id-ID').format(Math.round(n || 0));
@@ -22,7 +23,12 @@ export function PosClient({ branches, defaultBranch, nonCashMethods, taxPercent 
   const [loading, setLoading] = useState(false); const [err, setErr] = useState('');
   const [cart, setCart] = useState<Line[]>([]);
   const [customer, setCustomer] = useState({ name: '', phone: '', address: '' });
-  const [extra, setExtra] = useState(0); const [notes, setNotes] = useState('');
+  const [dpct, setDpct] = useState(''); const [tpct, setTpct] = useState(taxPercent ? String(taxPercent) : ''); const [notes, setNotes] = useState('');
+  const router = useRouter();
+  const [rev, setRev] = useState(0);
+  const [state, formAction] = useActionState(createSalePosAction, null);
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  const success = state?.ok && state.saleId && state.saleId !== dismissed ? state : null;
   const [payOpen, setPayOpen] = useState(false);
   const [kind, setKind] = useState<'cash' | 'noncash'>('cash');
   const [tendered, setTendered] = useState(''); const [method, setMethod] = useState(nonCashMethods[0]); const [ref, setRef] = useState(''); const [payNote, setPayNote] = useState('');
@@ -40,7 +46,12 @@ export function PosClient({ branches, defaultBranch, nonCashMethods, taxPercent 
       finally { setLoading(false); }
     }, q ? 250 : 0);
     return () => { clearTimeout(t); ctrl.abort(); };
-  }, [branch, q, cat]);
+  }, [branch, q, cat, rev]);
+
+  useEffect(() => {
+    if (success) { setCart([]); setDpct(''); setPayOpen(false); setNotes(''); setCustomer({ name: '', phone: '', address: '' }); setRev((r) => r + 1); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [success?.saleId]);
 
   const inCart = (pid: string) => cart.filter((l) => l.product_id === pid).reduce((a, l) => a + l.qty, 0);
 
@@ -74,11 +85,14 @@ export function PosClient({ branches, defaultBranch, nonCashMethods, taxPercent 
   const t = useMemo(() => {
     const sub = cart.reduce((a, l) => a + l.price * l.qty, 0);
     const itemDisc = cart.reduce((a, l) => a + Math.min(l.discount, l.price * l.qty), 0);
-    const extraC = Math.min(Math.max(extra || 0, 0), Math.max(sub - itemDisc, 0));
-    const taxable = sub - itemDisc - extraC;
-    const tax = taxPercent > 0 ? Math.round((taxable * taxPercent) / 100) : 0;
-    return { sub, itemDisc, extraC, tax, total: taxable + tax };
-  }, [cart, extra, taxPercent]);
+    const base = Math.max(sub - itemDisc, 0);
+    const dp = Math.min(Math.max(Number(dpct) || 0, 0), 100);
+    const tp = Math.min(Math.max(Number(tpct) || 0, 0), 100);
+    const disc = Math.round((base * dp) / 100);
+    const after = base - disc;
+    const tax = Math.round((after * tp) / 100);
+    return { sub, itemDisc, base, dp, tp, disc, after, tax, total: after + tax };
+  }, [cart, dpct, tpct]);
 
   const noPrice = cart.some((l) => l.price <= 0);
   const tend = Number(tendered || 0);
@@ -86,7 +100,7 @@ export function PosClient({ branches, defaultBranch, nonCashMethods, taxPercent 
   const canPay = cart.length > 0 && !noPrice && (kind === 'noncash' || tend >= t.total);
   const quick = [...new Set([t.total, Math.ceil(t.total / 50000) * 50000, Math.ceil(t.total / 100000) * 100000, Math.ceil(t.total / 100000) * 100000 + 100000])].filter((n) => n >= t.total && n > 0);
   const payload = JSON.stringify({
-    branch_id: branch, customer, extra_discount: t.extraC, kind, method: kind === 'cash' ? 'Tunai' : method, tendered: kind === 'cash' ? tend : t.total,
+    branch_id: branch, customer, discount_percent: t.dp, tax_percent: t.tp, kind, method: kind === 'cash' ? 'Tunai' : method, tendered: kind === 'cash' ? tend : t.total,
     reference: ref, pay_note: payNote, notes,
     items: cart.map((l) => ({ product_id: l.product_id, unit_id: l.unit_id, qty: l.qty, unit_price: l.price, discount: Math.min(l.discount, l.price * l.qty) })),
   });
@@ -163,15 +177,18 @@ export function PosClient({ branches, defaultBranch, nonCashMethods, taxPercent 
         <dl className="mt-3 space-y-1 border-t border-dashed border-ink-300 pt-3 text-sm">
           <div className="flex justify-between"><dt>Subtotal</dt><dd>{rp(t.sub)}</dd></div>
           {t.itemDisc > 0 && <div className="flex justify-between"><dt>Diskon item</dt><dd>− {rp(t.itemDisc)}</dd></div>}
-          <div className="flex items-center justify-between gap-2"><dt>Diskon transaksi</dt><dd><input className="input w-32 py-1 text-right" type="number" min={0} value={extra || ''} onChange={(e) => setExtra(Number(e.target.value))} aria-label="Diskon transaksi" /></dd></div>
-          {taxPercent > 0 && <div className="flex justify-between"><dt>Pajak ({taxPercent}%)</dt><dd>{rp(t.tax)}</dd></div>}
-          <div className="flex justify-between text-lg font-semibold"><dt>Total</dt><dd>{rp(t.total)}</dd></div>
+          <div className="flex items-center justify-between gap-2"><dt>Diskon (%)</dt><dd className="flex items-center gap-1"><input className="input w-20 py-1 text-right" type="number" min={0} max={100} step="0.5" value={dpct} onChange={(e) => setDpct(e.target.value)} aria-label="Diskon persen" placeholder="0" /><span>%</span></dd></div>
+          {t.dp > 0 && <div className="flex justify-between text-ink-500"><dt>Diskon {t.dp}%</dt><dd>− {rp(t.disc)}</dd></div>}
+          <div className="flex justify-between"><dt>Total setelah diskon</dt><dd>{rp(t.after)}</dd></div>
+          <div className="flex items-center justify-between gap-2"><dt>Pajak (%)</dt><dd className="flex items-center gap-1"><input className="input w-20 py-1 text-right" type="number" min={0} max={100} step="0.5" value={tpct} onChange={(e) => setTpct(e.target.value)} aria-label="Pajak persen" placeholder="0" /><span>%</span></dd></div>
+          {t.tp > 0 && <div className="flex justify-between text-ink-500"><dt>Pajak {t.tp}%</dt><dd>+ {rp(t.tax)}</dd></div>}
+          <div className="flex justify-between border-t border-ink-300/50 pt-1 text-lg font-semibold"><dt>Total pembayaran</dt><dd>{rp(t.total)}</dd></div>
         </dl>
         <button type="button" className="btn-primary mt-3 w-full py-3 text-base" disabled={cart.length === 0 || noPrice} onClick={() => { setTendered(''); setPayOpen(true); }}>Bayar {cart.length > 0 && rp(t.total)}</button>
-        {cart.length > 0 && <button type="button" className="mt-2 w-full text-sm text-ink-500 hover:text-bad" onClick={() => { if (window.confirm('Kosongkan keranjang?')) { setCart([]); setExtra(0); } }}>Kosongkan keranjang</button>}
+        {cart.length > 0 && <button type="button" className="mt-2 w-full text-sm text-ink-500 hover:text-bad" onClick={() => { if (window.confirm('Kosongkan keranjang?')) { setCart([]); setDpct(''); } }}>Kosongkan keranjang</button>}
       </aside>
 
-      {payOpen && (
+      {payOpen && !success && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Pembayaran">
           <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-xl bg-white p-4 sm:rounded-xl">
             <div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-semibold">Pembayaran</h2><button type="button" className="rounded p-1 hover:bg-canvas" onClick={() => setPayOpen(false)} aria-label="Tutup">✕</button></div>
@@ -179,7 +196,7 @@ export function PosClient({ branches, defaultBranch, nonCashMethods, taxPercent 
             <div className="mb-3 grid grid-cols-2 gap-2" role="tablist">
               {(['cash', 'noncash'] as const).map((k) => <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => setKind(k)} className={`rounded-md border px-3 py-2 text-sm font-medium ${kind === k ? 'border-brand bg-brand text-white' : 'border-ink-300 bg-white'}`}>{k === 'cash' ? 'Tunai' : 'Non-Tunai'}</button>)}
             </div>
-            <ActionForm action={createSalePosAction} className="space-y-3">
+            <form action={formAction} className="space-y-3">
               <input type="hidden" name="payload" value={payload} />
               {kind === 'cash' ? (
                 <>
@@ -198,9 +215,23 @@ export function PosClient({ branches, defaultBranch, nonCashMethods, taxPercent 
                   <label className="block"><span className="label">Catatan pembayaran (opsional)</span><input className="input" value={payNote} onChange={(e) => setPayNote(e.target.value)} maxLength={200} /></label>
                 </>
               )}
+              {state && !state.ok && state.message && <div role="alert" className="rounded-md bg-bad-soft px-3 py-2 text-sm text-bad">{state.message}</div>}
               <p className="text-xs text-ink-500">Transaksi hanya selesai bila pembayaran mencukupi; status otomatis LUNAS.</p>
               {canPay ? <SubmitButton className="btn-primary w-full py-3 text-base">Selesaikan transaksi</SubmitButton> : <button type="button" className="btn-primary w-full py-3 text-base opacity-50" disabled>{kind === 'cash' ? 'Uang diterima belum cukup' : 'Lengkapi pembayaran'}</button>}
-            </ActionForm>
+            </form>
+          </div>
+        </div>)}
+      {success && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="pay-ok-title">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-ok-soft text-3xl text-ok" aria-hidden>✓</div>
+            <h2 id="pay-ok-title" className="text-xl font-bold">Pembayaran Berhasil!</h2>
+            <p className="mt-1 text-sm text-ink-500">Transaksi <b>{success.invoice}</b> berhasil disimpan.</p>
+            <p className="mt-2 text-2xl font-bold text-brand">{rp(success.total ?? 0)}</p>
+            <div className="mt-5 flex flex-col gap-2">
+              <button type="button" className="btn-primary py-3" onClick={() => router.push(`/sales/${success.saleId}`)}>Lihat Detail Transaksi</button>
+              <button type="button" className="btn-ghost py-2" onClick={() => setDismissed(success.saleId ?? null)}>Transaksi Baru</button>
+            </div>
           </div>
         </div>)}
     </div>

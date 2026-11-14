@@ -60,8 +60,15 @@ export default async function SaleDetail({ params }: { params: Promise<{ id: str
         </tbody></table>
         <div className="ml-auto mt-3 max-w-xs space-y-1 text-sm">
           <div className="flex justify-between"><span>Subtotal</span><span>{rupiah(s.subtotal)}</span></div>
-          <div className="flex justify-between"><span>Diskon</span><span>- {rupiah(s.discount)}</span></div>
-          {Number(s.tax) > 0 && <div className="flex justify-between"><span>Pajak</span><span>{rupiah(s.tax)}</span></div>}
+          {(() => {
+            const itemDisc = items.filter((i) => i.active).reduce((a, i) => a + Number(i.discount), 0);
+            const txDisc = Math.max(Number(s.discount) - itemDisc, 0);
+            return (<>
+              {itemDisc > 0 && <div className="flex justify-between"><span>Diskon item</span><span>- {rupiah(itemDisc)}</span></div>}
+              <div className="flex justify-between"><span>Diskon transaksi{Number(s.discount_percent) > 0 ? ` (${Number(s.discount_percent)}%)` : ''}</span><span>- {rupiah(txDisc)}</span></div>
+              <div className="flex justify-between"><span>Pajak{Number(s.tax_percent) > 0 ? ` (${Number(s.tax_percent)}%)` : ''}</span><span>{Number(s.tax) > 0 ? '+ ' : ''}{rupiah(s.tax)}</span></div>
+            </>);
+          })()}
           <div className="flex justify-between text-base font-semibold"><span>Total</span><span>{rupiah(s.total)}</span></div>
           <div className="flex justify-between"><span>Dibayar ({s.payment_method ?? '-'})</span><span>{rupiah(paidTotal)}</span></div>
           {paidTotal < Number(s.total) && <div className="flex justify-between text-bad"><span>Sisa</span><span>{rupiah(Number(s.total) - paidTotal)}</span></div>}
