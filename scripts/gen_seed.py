@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """Generator seed. Output (deterministik, idempoten) ke supabase/seed/:
-  00_base.sql        cabang, kategori, pengaturan awal
+  00_base.sql        lokasi Cidodol, kategori, pengaturan awal
   01_cidodol.sql     inventory nyata Cidodol dari daftar (49 unit berseri + 7 aksesori/46 pcs)
-  02_demo.sql        data SINTETIS 1 bulan untuk 5 cabang demo (data_origin='demo')
-  99_reset_demo.sql  hapus data demo saja (tidak menyentuh Cidodol)
 Jalankan:  python3 scripts/gen_seed.py
 """
 import csv, re, uuid, random, collections, pathlib
@@ -22,9 +20,7 @@ def q(v):
     if isinstance(v, (int, float)): return str(v)
     return "'" + str(v).replace("'", "''") + "'"
 
-BRANCHES = [  # nama/kota dari proyek lama (README/SQL v6); dapat diedit di Pengaturan
-    ("CDL", "Cidodol", "Jakarta", False), ("CLD", "Ciledug", "Tangerang", True), ("MRY", "Meruya", "Jakarta Barat", True),
-    ("PMG", "Pamulang", "Tangerang Selatan", True), ("CSK", "Cisauk", "Tangerang", True), ("BTR", "Bintaro", "Tangerang Selatan", True)]
+BRANCHES = [("CDL", "Cidodol", "Jakarta", False)]  # satu lokasi operasional
 
 def base():
     o = ["-- 00_base.sql (dibuat oleh scripts/gen_seed.py) — idempoten", "begin;"]
@@ -47,6 +43,12 @@ def clean_storage(s):
     return re.search(r"\d+", s).group() + " GB"
 def clean(s): return re.sub(r"\s*\(\?\)", "", s or "").strip() or None
 
+# SKU dipertahankan sama dengan data yang sudah ada di database (kunci: nomor baris pertama pada daftar sumber).
+# LTP-0006 (dulu salah dibaca 'Think Yoga') digabung ke LTP-0007; LTP-0023 = L14 i5-10210U 8/256 Touchscreen (baris 4).
+SKU_BY_FIRST_REF = {"1": "LTP-0001", "3": "LTP-0002", "5": "LTP-0003", "4": "LTP-0023", "6": "LTP-0004", "7": "LTP-0005", "9": "LTP-0007",
+    "11": "LTP-0008", "14": "LTP-0009", "17": "LTP-0010", "18": "LTP-0011", "19": "LTP-0012", "21": "LTP-0013", "22": "LTP-0014", "23": "LTP-0015",
+    "24": "AIO-0001", "25": "LTP-0016", "26": "LTP-0017", "39": "LTP-0018", "40": "LTP-0019", "42": "LTP-0020", "47": "LTP-0021", "49": "LTP-0022"}
+
 def load_catalog():
     laptops = list(csv.DictReader(open(SRC / "cidodol_inventory_normalized.csv", encoding="utf-8")))
     accs = list(csv.DictReader(open(SRC / "cidodol_accessories_quantity.csv", encoding="utf-8")))
@@ -58,14 +60,13 @@ def load_catalog():
     for key, rows in groups.items():
         brand, model, cpu, ram, sto, touch, cat = key
         pre = "AIO" if cat == "PC All-in-One" else "LTP"
-        counters[pre] += 1
-        sku = f"{pre}-{counters[pre]:04d}"
+        sku = SKU_BY_FIRST_REF[rows[0]["ref_no"]]
         parts = [brand or ("PC" if cat == "PC All-in-One" else rows[0]["nama_asli_daftar"].split()[0].title()), model or "(model tidak disebut)", cpu]
         if ram and sto: parts.append(f"{ram}GB/{sto.replace(' GB','')}")
         if touch == "Ya": parts.append("Touchscreen")
         products.append(dict(sku=sku, name=" ".join(p for p in parts if p), original=rows[0]["nama_asli_daftar"], brand=brand or None, model=model,
             cat=cat, tracking="serialized", cpu=cpu, ram=int(ram) if ram else None, storage=sto, touch={"Ya": True, "Tidak": False}.get(touch),
-            verify=any(x["perlu_verifikasi"] == "YA" for x in rows), ref=",".join(x["ref_no"] for x in rows), units=rows))
+            verify=any(x["perlu_verifikasi"] == "YA" for x in rows), ref=",".join(sorted((x["ref_no"] for x in rows), key=int)), units=rows))
     for r in accs:
         counters["ACC"] += 1
         nm = r["nama_asli_daftar"]
@@ -232,19 +233,81 @@ def demo(products):
     summary = {c: dict(units=len(s["units"]), terjual=s["sales"], omzet_demo=int(s["rev"]), tiket=s["tickets"]) for c, s in state.items()}
     return "\n".join(o) + "\n", summary
 
-def reset_sql():
-    return "-- 99_reset_demo.sql — hapus SELURUH data demo. Data 'real' (Cidodol) tidak disentuh.\nselect public._reset_demo();\n"
+# Harga jual ESTIMASI (rupiah) untuk barang bekas di pasar Indonesia (per akhir 2026), BUKAN harga terverifikasi.
+# Dasar: merek/seri, generasi prosesor, RAM/storage, layar sentuh, dan kondisi umum barang second layak jual. Ubah di menu Produk.
+PRICES = {
+    "LTP-0001": 5000000, "LTP-0002": 4700000, "LTP-0003": 4200000, "LTP-0023": 4400000, "LTP-0004": 4500000, "LTP-0005": 6500000,
+    "LTP-0007": 3400000, "LTP-0008": 1400000, "LTP-0009": 1700000, "LTP-0010": 1400000, "LTP-0011": 2200000, "LTP-0012": 2400000,
+    "LTP-0013": 1900000, "LTP-0014": 4200000, "LTP-0015": 3000000, "AIO-0001": 2200000, "LTP-0016": 1800000, "LTP-0017": 1800000,
+    "LTP-0018": 4200000, "LTP-0019": 2000000, "LTP-0020": 1500000, "LTP-0021": 3200000, "LTP-0022": 5500000,
+    "ACC-0001": 30000, "ACC-0002": 50000, "ACC-0003": 60000, "ACC-0004": 20000, "ACC-0005": 30000, "ACC-0006": 150000, "ACC-0007": 15000,
+}
+EST = "estimasi, belum diverifikasi"
+
+def price_sql(products):
+    skus = {p["sku"] for p in products}
+    assert skus == set(PRICES), (skus ^ set(PRICES))
+    assert all(v > 0 and v == int(v) for v in PRICES.values())
+    vals = ", ".join(f"({q(k)}, {v})" for k, v in PRICES.items())
+    return ("with est(sku, price) as (values " + vals + ")\n"
+            "update products p set default_price = est.price,\n"
+            f"       specs = coalesce(p.specs, '{{}}'::jsonb) || '{{\"catatan_harga\": \"{EST}\"}}'::jsonb\n"
+            "  from est where p.sku = est.sku\n"
+            f"   and (p.default_price is null or p.default_price = 0 or p.specs ->> 'catatan_harga' = '{EST}');\n")
+
+def seed_prices(products):
+    return ("-- 02_harga_estimasi.sql (dibuat oleh scripts/gen_seed.py) — harga jual ESTIMASI barang bekas; idempoten.\n"
+            "-- Hanya mengisi harga yang kosong atau yang masih berstatus 'estimasi'; harga yang sudah diisi manual TIDAK ditimpa.\nbegin;\n"
+            + price_sql(products) + "commit;\n")
+
+def migration_0009(products):
+    o = ["-- 0009_koreksi_inventaris_dan_harga.sql (dibuat oleh scripts/gen_seed.py)",
+         "-- Menyelaraskan nama/spesifikasi produk Cidodol dengan daftar inventaris asli (gambar daftar terbaru) dan mengisi harga estimasi barang bekas.",
+         "-- Aman untuk data yang sudah ada: SKU & id produk dipertahankan, nomor seri/transaksi tidak diubah, harga hasil edit manual tidak ditimpa.",
+         "-- Jalankan SETELAH 0008, sekali, di Supabase SQL Editor.", "begin;",
+         "-- 1. Baris 4 pada daftar = L14 i5-10210U 8/256 TOUCHSCREEN (berbeda dari baris 5 yang NO TOUCHSCREEN) -> produk baru LTP-0023.",
+         "insert into products(sku,name,original_name,brand,model,category_id,tracking,processor,ram_gb,storage,touchscreen,specs,needs_verification,source_ref)",
+         "select 'LTP-0023', name, original_name, brand, model, category_id, tracking, processor, ram_gb, storage, true, specs, false, '4' from products where sku = 'LTP-0003'",
+         "  and not exists (select 1 from products where sku = 'LTP-0023');",
+         "do $$ declare v_old uuid; v_new uuid; v_u uuid; begin",
+         "  select id into v_old from products where sku = 'LTP-0003'; select id into v_new from products where sku = 'LTP-0023';",
+         "  select id into v_u from inventory_units where internal_asset_code = 'UNIT-CDL-000004' and product_id = v_old;",
+         "  if v_u is not null and v_new is not null and not exists (select 1 from sale_items where unit_id = v_u) then",
+         "    update inventory_units set product_id = v_new where id = v_u;",
+         "    update stock_movements set product_id = v_new where unit_id = v_u;",
+         "  end if;",
+         "  -- 2. Baris 9 = THINKPAD L13 YOGA (sama dengan baris 10), bukan produk 'Think Yoga' terpisah: gabungkan LTP-0006 -> LTP-0007.",
+         "  select id into v_old from products where sku = 'LTP-0006'; select id into v_new from products where sku = 'LTP-0007';",
+         "  select id into v_u from inventory_units where internal_asset_code = 'UNIT-CDL-000009' and product_id = v_old;",
+         "  if v_u is not null and v_new is not null and not exists (select 1 from sale_items where unit_id = v_u) then",
+         "    update inventory_units set product_id = v_new where id = v_u;",
+         "    update stock_movements set product_id = v_new where unit_id = v_u;",
+         "  end if;",
+         "  if v_old is not null and not exists (select 1 from inventory_units where product_id = v_old) then",
+         "    update products set archived = true where id = v_old;",
+         "  end if;",
+         "end $$;",
+         "-- 3. Nama & spesifikasi sesuai daftar asli (harga tidak diubah di langkah ini)."]
+    for p in products:
+        o.append("update products set name=%s, original_name=%s, brand=%s, model=%s, processor=%s, ram_gb=%s, storage=%s, touchscreen=%s, needs_verification=%s, source_ref=%s where sku=%s;"
+                 % (q(p["name"]), q(p["original"]), q(p["brand"]), q(p["model"]), q(p["cpu"]), q(p["ram"]), q(p["storage"]), q(p["touch"]), q(p["verify"]), q(p["ref"]), q(p["sku"])))
+        for r in p["units"]:
+            note = r["catatan"] + (" [PERLU VERIFIKASI]" if r["perlu_verifikasi"] == "YA" else "")
+            o.append("update inventory_units set source_raw=%s, notes=%s where internal_asset_code=%s;" % (q(r["nama_asli_daftar"]), q(note or None), q(r["internal_asset_code"])))
+    o.append("-- 4. Harga estimasi barang bekas (hanya mengisi yang kosong / masih berstatus estimasi).")
+    o.append(price_sql(products) + "commit;")
+    o.append("-- Cek: select sku, name, default_price from products where not archived order by sku;")
+    return "\n".join(o) + "\n"
 
 if __name__ == "__main__":
     prods = load_catalog()
     (OUT / "00_base.sql").write_text(base(), encoding="utf-8")
     sql, nu = cidodol(prods)
     (OUT / "01_cidodol.sql").write_text(sql, encoding="utf-8")
-    dsql, summ = demo(prods)
-    (OUT / "02_demo.sql").write_text(dsql, encoding="utf-8")
-    (OUT / "99_reset_demo.sql").write_text(reset_sql(), encoding="utf-8")
+    (OUT / "02_harga_estimasi.sql").write_text(seed_prices(prods), encoding="utf-8")
+    (ROOT / "supabase/migrations/0009_koreksi_inventaris_dan_harga.sql").write_text(migration_0009(prods), encoding="utf-8")
     lap = [p for p in prods if p["tracking"] == "serialized"]; acc = [p for p in prods if p["tracking"] == "quantity"]
     assert nu == 49 and sum(len(p["units"]) for p in lap) == 49 and sum(p["qty"] for p in acc) == 46
+    assert len(prods) == 30  # 22 laptop + 1 AIO + 7 aksesori (LTP-0006 digabung, LTP-0023 baru)
     skus = [p["sku"] for p in prods]; assert len(skus) == len(set(skus))
     print(f"OK  produk={len(prods)} (berseri={len(lap)}, aksesori={len(acc)})  unit Cidodol={nu}  aksesori={sum(p['qty'] for p in acc)} pcs")
-    print("Demo:", summ)

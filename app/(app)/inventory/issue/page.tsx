@@ -2,7 +2,7 @@ import { requirePage } from '@/lib/context';
 import { run } from '@/lib/db';
 import { ISSUE_REASONS } from '@/lib/labels';
 import { fdatetime, nf, ymdWIB } from '@/lib/format';
-import { Card, Chip, Empty, Field, PageHeader, TableWrap, one } from '@/components/ui';
+import { Card, Chip, Empty, Field, PageHeader, TableWrap } from '@/components/ui';
 import { ActionForm, SubmitButton } from '@/components/ActionForm';
 import { issueStockAction } from '../stock-actions';
 
@@ -10,10 +10,9 @@ type U = { id: string; product_id: string; internal_asset_code: string; serial_n
 type B = { product_id: string; qty: number; products: { name: string; sku: string } | null };
 type M = { id: string; created_at: string; qty: number; reason: string | null; ref_no: string | null; note: string | null; products: { name: string } | null; branches: { name: string } | null; profiles: { full_name: string } | null };
 
-export default async function IssuePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function IssuePage() {
   const ctx = await requirePage('inventory.write');
-  const sp = await searchParams;
-  const branch = ctx.scopeBranches.find((b) => b.id === (one(sp.branch) ?? ctx.branch?.id)) ?? ctx.scopeBranches[0] ?? null;
+  const branch = ctx.branch;
   const [units, bal, recent] = await Promise.all([
     branch ? run<U[]>('unit', () => ctx.sb.from('inventory_units').select('id,product_id,internal_asset_code,serial_number,products(name)').eq('branch_id', branch.id).eq('status', 'available').eq('archived', false).order('internal_asset_code').limit(500)) : [],
     branch ? run<B[]>('saldo', () => ctx.sb.from('inventory_balances').select('product_id,qty,products(name,sku)').eq('branch_id', branch.id).gt('qty', 0).limit(500)) : [],
@@ -27,10 +26,6 @@ export default async function IssuePage({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader title="Barang Keluar" sub="Pengeluaran stok di luar penjualan (rusak, internal, hilang, dll.). Stok berkurang otomatis setelah dikonfirmasi." />
-      <form method="get" className="mb-4 flex flex-wrap items-end gap-2">
-        <Field label="Cabang asal"><select name="branch" className="input" defaultValue={branch?.id}>{ctx.scopeBranches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></Field>
-        <button className="btn-ghost">Tampilkan stok</button>
-      </form>
       {branch && (
         <div className="grid gap-4 lg:grid-cols-2">
           <Card title={`Unit berseri di ${branch.name} (${units.length})`}>
@@ -55,8 +50,8 @@ export default async function IssuePage({ searchParams }: { searchParams: Promis
         </div>)}
       <h2 className="mb-2 mt-6 font-semibold">Riwayat barang keluar</h2>
       {recent.length === 0 ? <Empty title="Belum ada barang keluar" /> : (
-        <TableWrap><table className="tbl"><thead><tr><th>Tanggal</th><th>No.</th><th>Produk</th><th>Cabang</th><th className="text-right">Jml</th><th>Alasan</th><th>Petugas</th></tr></thead><tbody>
-          {recent.map((m) => (<tr key={m.id}><td className="whitespace-nowrap">{fdatetime(m.created_at)}</td><td>{m.ref_no && <Chip>{m.ref_no}</Chip>}</td><td>{m.products?.name}</td><td>{m.branches?.name}</td><td className="text-right text-bad">{m.qty}</td><td>{m.reason}{m.note && <div className="text-xs text-ink-500">{m.note}</div>}</td><td>{m.profiles?.full_name ?? '-'}</td></tr>))}
+        <TableWrap><table className="tbl"><thead><tr><th>Tanggal</th><th>No.</th><th>Produk</th><th className="text-right">Jml</th><th>Alasan</th><th>Petugas</th></tr></thead><tbody>
+          {recent.map((m) => (<tr key={m.id}><td className="whitespace-nowrap">{fdatetime(m.created_at)}</td><td>{m.ref_no && <Chip>{m.ref_no}</Chip>}</td><td>{m.products?.name}</td><td className="text-right text-bad">{m.qty}</td><td>{m.reason}{m.note && <div className="text-xs text-ink-500">{m.note}</div>}</td><td>{m.profiles?.full_name ?? '-'}</td></tr>))}
         </tbody></table></TableWrap>)}
     </>
   );

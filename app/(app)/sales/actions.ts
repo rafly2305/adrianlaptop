@@ -1,39 +1,10 @@
 'use server';
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { requireAction, branchAllowed } from '@/lib/context';
-import { mutate } from '@/lib/db';
+import { mutate, run } from '@/lib/db';
 import { AppError } from '@/lib/errors';
 import { parse, safe, uuid, type ActionState } from '@/lib/action';
-
-const payloadSchema = z.object({
-  branch_id: uuid,
-  customer: z.object({ name: z.string().max(120).optional(), phone: z.string().max(30).optional(), address: z.string().max(300).optional() }),
-  items: z.array(z.object({ product_id: uuid, unit_id: z.string().uuid().optional(), qty: z.number().int().min(1).max(1000), unit_price: z.number().min(0).max(1e10), discount: z.number().min(0).max(1e10) })).min(1, 'Keranjang kosong').max(100),
-  method: z.string().max(40).optional(),
-  pay: z.enum(['full', 'partial', 'none']),
-  paid: z.number().min(0).optional(),
-  notes: z.string().max(300).optional(),
-});
-
-export async function createSaleAction(_p: ActionState, fd: FormData): Promise<ActionState> {
-  return safe(async () => {
-    const ctx = await requireAction('pos.sell');
-    let raw: unknown;
-    try { raw = JSON.parse(String(fd.get('payload') ?? '')); } catch { throw new AppError('validation', 'Data transaksi tidak terbaca.'); }
-    const r = payloadSchema.safeParse(raw);
-    if (!r.success) throw new AppError('validation', r.error.issues[0]?.message ?? 'Data transaksi tidak valid.');
-    const v = r.data;
-    if (!branchAllowed(ctx, v.branch_id)) throw new AppError('forbidden', 'Anda tidak memiliki akses ke cabang ini.');
-    // Harga/total dihitung ulang di database; nilai dari klien hanya masukan.
-    const paid = v.pay === 'full' ? null : v.pay === 'none' ? 0 : v.paid ?? 0;
-    const id = await mutate<string>('create_sale', () => ctx.sb.rpc('create_sale', {
-      p_branch: v.branch_id, p_customer: v.customer, p_items: v.items, p_method: v.pay === 'none' ? v.method ?? null : v.method ?? null, p_paid: paid, p_notes: v.notes ?? null }));
-    revalidatePath('/sales'); revalidatePath('/inventory', 'layout'); revalidatePath('/');
-    redirect(`/sales/${id}`);
-  });
-}
 
 export async function voidSaleAction(_p: ActionState, fd: FormData): Promise<ActionState> {
   return safe(async () => {
@@ -55,21 +26,29 @@ export async function returnItemAction(_p: ActionState, fd: FormData): Promise<A
   });
 }
 
+const pct = z.number().min(0, 'Persentase tidak boleh negatif').max(100, 'Persentase maksimal 100%')
+  .refine((n) => Math.abs(n * 100 - Math.round(n * 100)) < 1e-6, 'Persentase maksimal 2 angka desimal');
+
 const posSchema = z.object({
+  request_id: uuid,
   branch_id: uuid,
   customer: z.object({ name: z.string().max(120).optional(), phone: z.string().max(30).optional(), address: z.string().max(300).optional() }),
-  items: z.array(z.object({ product_id: uuid, unit_id: z.string().uuid().optional(), qty: z.number().int().min(1).max(1000), unit_price: z.number().min(0).max(1e10), discount: z.number().min(0).max(1e10) })).min(1, 'Keranjang kosong').max(100),
-  discount_percent: z.number().min(0, 'Diskon minimal 0%').max(100, 'Diskon maksimal 100%').default(0),
-  tax_percent: z.number().min(0, 'Pajak minimal 0%').max(100, 'Pajak maksimal 100%').default(0),
-  kind: z.enum(['cash', 'noncash']),
-  method: z.string().min(1, 'Pilih metode pembayaran').max(40),
+  // Harga/diskon per-item dari klien TIDAK dipakai: harga selalu diambil dari database oleh fungsi create_sale_pos.
+  items: z.array(z.object({ product_id: uuid, unit_id: z.string().uuid().optional(), qty: z.number().int().min(1).max(1000) })).min(1, 'Keranjang kosong').max(100),
+  discount_percent: pct.default(0),
+  tax_percent: pct.default(0),
+  method: z.enum(['Tunai', 'QRIS', 'Transfer Bank', 'Kartu Debit'], { errorMap: () => ({ message: 'Pilih metode pembayaran' }) }),
   tendered: z.number().min(0).max(1e11).optional(),
+  verified: z.boolean().default(false),
   reference: z.string().max(100).optional(),
   pay_note: z.string().max(200).optional(),
   notes: z.string().max(300).optional(),
 });
 
-/** Transaksi POS: pembayaran Tunai/Non-Tunai, selalu LUNAS. Total, pajak, dan kembalian dihitung ulang di database. */
+/**
+ * Transaksi POS. Subtotal, diskon %, pajak %, total, dan kembalian dihitung ulang di database.
+ * Mengembalikan data transaksi yang BENAR-BENAR tersimpan; klien baru menampilkan "Pembayaran Berhasil" setelah ini ok.
+ */
 export async function createSalePosAction(_p: ActionState, fd: FormData): Promise<ActionState> {
   return safe(async () => {
     const ctx = await requireAction('pos.sell');
@@ -78,16 +57,17 @@ export async function createSalePosAction(_p: ActionState, fd: FormData): Promis
     const r = posSchema.safeParse(raw);
     if (!r.success) throw new AppError('validation', r.error.issues[0]?.message ?? 'Data transaksi tidak valid.');
     const v = r.data;
-    if (!branchAllowed(ctx, v.branch_id)) throw new AppError('forbidden', 'Anda tidak memiliki akses ke cabang ini.');
-    const isCash = v.kind === 'cash';
-    if (isCash && v.method.toLowerCase() !== 'tunai') throw new AppError('validation', 'Metode tunai tidak valid.');
-    if (!isCash && v.method.toLowerCase() === 'tunai') throw new AppError('validation', 'Pilih metode non-tunai.');
+    if (!branchAllowed(ctx, v.branch_id)) throw new AppError('forbidden', 'Anda tidak memiliki akses ke lokasi ini.');
+    const isCash = v.method === 'Tunai';
     const id = await mutate<string>('create_sale_pos', () => ctx.sb.rpc('create_sale_pos', {
       p_branch: v.branch_id, p_customer: v.customer, p_items: v.items, p_method: v.method, p_tendered: isCash ? v.tendered ?? 0 : null,
-      p_reference: v.reference ?? null, p_pay_note: v.pay_note ?? null, p_discount_pct: v.discount_percent, p_tax_pct: v.tax_percent, p_notes: v.notes ?? null }));
-    // Sampai di sini hanya bila RPC berhasil (transaksi sudah tersimpan); kegagalan melempar error sebelum ini.
-    const sale = await ctx.sb.from('sales').select('invoice_no,total').eq('id', id).maybeSingle();
+      p_reference: v.reference ?? null, p_pay_note: v.pay_note ?? null, p_discount_percent: v.discount_percent, p_tax_percent: v.tax_percent,
+      p_verified: isCash ? true : v.verified, p_request_id: v.request_id, p_notes: v.notes ?? null }));
+    // Baca ulang dari database: popup hanya memakai nilai yang benar-benar tersimpan.
+    const saved = await run<{ id: string; invoice_no: string; total: number; payment_method: string | null; payment_status: string } | null>('baca transaksi',
+      () => ctx.sb.from('sales').select('id,invoice_no,total,payment_method,payment_status').eq('id', id).maybeSingle());
+    if (!saved) throw new AppError('db', 'Transaksi tidak ditemukan setelah disimpan. Periksa Riwayat Transaksi sebelum mengulang.');
     revalidatePath('/sales'); revalidatePath('/inventory', 'layout'); revalidatePath('/');
-    return { ok: true, message: 'Pembayaran berhasil.', saleId: id, invoice: sale.data?.invoice_no ?? '', total: Number(sale.data?.total ?? 0) };
+    return { ok: true, message: 'Pembayaran berhasil disimpan.', data: { id: saved.id, invoice_no: saved.invoice_no, total: Number(saved.total), method: saved.payment_method, status: saved.payment_status } };
   });
 }

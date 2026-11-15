@@ -26,10 +26,8 @@ export default async function InventorySummary({ searchParams }: { searchParams:
   const pset = new Set(list.map((p) => p.id));
   const rows = stock.filter((s) => pset.has(s.product_id));
   const byProd = new Map<string, { avail: number; total: number }>();
-  const byBranch = new Map<string, { avail: number; products: number }>();
   rows.forEach((s) => {
     const a = byProd.get(s.product_id) ?? { avail: 0, total: 0 }; a.avail += s.available; a.total += s.total; byProd.set(s.product_id, a);
-    const b = byBranch.get(s.branch_id) ?? { avail: 0, products: 0 }; b.avail += s.available; if (s.available > 0) b.products += 1; byBranch.set(s.branch_id, b);
   });
   let units = 0, low = 0, out = 0, value = 0, noPrice = 0, stocked = 0;
   list.forEach((p) => {
@@ -42,7 +40,7 @@ export default async function InventorySummary({ searchParams }: { searchParams:
   const sum = (types: string[]) => mv30.filter((m) => types.includes(m.type)).reduce((a, m) => a + Math.abs(m.qty), 0);
   return (
     <>
-      <PageHeader title="Ringkasan Inventory" sub={ctx.branch?.name ?? 'Semua cabang'} actions={<Link className="btn-ghost" href="/inventory/movements">Riwayat pergerakan</Link>} />
+      <PageHeader title="Ringkasan Inventaris" sub={`Toko ${ctx.branch?.name ?? 'Cidodol'}`} actions={<Link className="btn-ghost" href="/inventory/movements">Riwayat pergerakan</Link>} />
       <form className="mb-4 flex flex-wrap items-end gap-2" method="get">
         <select name="cat" defaultValue={cat} className="input w-auto" aria-label="Kategori"><option value="">Semua kategori</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
         <button className="btn-primary">Terapkan</button>
@@ -59,17 +57,11 @@ export default async function InventorySummary({ searchParams }: { searchParams:
         <Stat label="Terjual (30 hari)" value={nf(sum(['sale']))} />
         <Stat label="Estimasi nilai persediaan" value={rupiah(value)} hint={noPrice ? `${noPrice} produk belum berharga tidak dihitung` : 'Berdasarkan harga jual'} />
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Stok per cabang">
-          {byBranch.size === 0 ? <Empty title="Belum ada data stok" /> : (
-            <TableWrap><table className="tbl"><thead><tr><th>Cabang</th><th className="text-right">Unit tersedia</th><th className="text-right">Jenis produk</th></tr></thead><tbody>
-              {ctx.scopeBranches.filter((b) => ids.includes(b.id)).map((b) => { const x = byBranch.get(b.id) ?? { avail: 0, products: 0 }; return (<tr key={b.id}><td>{b.name}</td><td className="text-right">{nf(x.avail)}</td><td className="text-right">{nf(x.products)}</td></tr>); })}
-            </tbody></table></TableWrap>)}
-        </Card>
+      <div className="grid gap-4">
         <Card title="Pergerakan stok terbaru" actions={<Link className="text-sm text-brand" href="/inventory/movements">Semua</Link>}>
           {recent.length === 0 ? <Empty title="Belum ada pergerakan" /> : (
             <TableWrap><table className="tbl"><thead><tr><th>Waktu</th><th>Produk</th><th>Jenis</th><th className="text-right">Jml</th></tr></thead><tbody>
-              {recent.map((m) => (<tr key={m.id}><td className="whitespace-nowrap">{fdatetime(m.created_at)}</td><td>{m.products?.name}<div className="text-xs text-ink-500">{m.branches?.name}</div></td><td><Badge tone="info">{MOVEMENT[m.type] ?? m.type}</Badge></td><td className={`text-right font-medium ${m.qty < 0 ? 'text-bad' : 'text-ok'}`}>{m.qty > 0 ? '+' : ''}{m.qty}</td></tr>))}
+              {recent.map((m) => (<tr key={m.id}><td className="whitespace-nowrap">{fdatetime(m.created_at)}</td><td>{m.products?.name}</td><td><Badge tone="info">{MOVEMENT[m.type] ?? m.type}</Badge></td><td className={`text-right font-medium ${m.qty < 0 ? 'text-bad' : 'text-ok'}`}>{m.qty > 0 ? '+' : ''}{m.qty}</td></tr>))}
             </tbody></table></TableWrap>)}
         </Card>
       </div>

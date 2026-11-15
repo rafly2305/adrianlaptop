@@ -25,7 +25,7 @@ const ACTIONS: Record<string, ActType> = {
   'auth.login': 'LOGIN', 'auth.logout': 'LOGOUT',
   insert: 'CREATE', update: 'UPDATE', delete: 'DELETE',
   'unit.receive': 'CREATE', 'qty.receive': 'CREATE', 'stock.adjust': 'UPDATE', 'unit.status': 'UPDATE', 'unit.update': 'UPDATE', 'unit.serial': 'UPDATE',
-  'sale.create': 'CREATE', 'sale.void': 'VOID', 'sale.return': 'RETURN',
+  'sale.create': 'CREATE', 'sale.pos': 'CREATE', 'sale.void': 'VOID', 'sale.return': 'RETURN',
   'transfer.create': 'CREATE', 'transfer.receive': 'UPDATE', 'transfer.cancel': 'VOID',
   'ticket.create': 'CREATE', 'ticket.status': 'UPDATE',
   'user.create': 'CREATE', 'user.update': 'UPDATE', 'user.activate': 'UPDATE', 'user.deactivate': 'UPDATE', 'user.reset_password': 'UPDATE',
@@ -50,6 +50,7 @@ export function describe(action: string, entity: string | null, d: D): string {
   switch (action) {
     case 'auth.login': return 'Masuk ke sistem';
     case 'auth.logout': return 'Keluar dari sistem';
+    case 'sale.pos': return `Transaksi POS ${str(d.invoice)} (${str(d.method)}) senilai ${rupiah(d.total as number)}`;
     case 'sale.create': return `Membuat transaksi ${str(d.invoice)} senilai ${rupiah(d.total as number)}`;
     case 'sale.void': return `Membatalkan transaksi ${str(d.invoice)}${d.reason ? ` — ${str(d.reason)}` : ''}`;
     case 'sale.return': return `Retur ${str(d.qty)} item${d.refund ? `, pengembalian ${rupiah(d.refund as number)}` : ''}${d.reason ? ` — ${str(d.reason)}` : ''}`;

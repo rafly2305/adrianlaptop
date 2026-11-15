@@ -1,6 +1,5 @@
 import 'server-only';
 import { cache } from 'react';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from './supabase/server';
 import { run } from './db';
@@ -8,9 +7,12 @@ import { AppError } from './errors';
 import { can, type Perm, type Role } from './permissions';
 
 export type Branch = { id: string; code: string; name: string; city: string | null; is_demo: boolean; active: boolean; data_origin: 'real' | 'demo' };
-export type Scope = 'real' | 'demo';
+/** Aplikasi hanya melayani data operasional nyata (Cidodol). Tipe dipertahankan agar kode lama tetap kompatibel. */
+export type Scope = 'real';
 
 const NONE = '00000000-0000-0000-0000-000000000000';
+/** Kode lokasi operasional tunggal. */
+export const LOCATION_CODE = 'CDL';
 
 export const getContext = cache(async () => {
   const sb = await createClient();
@@ -19,22 +21,16 @@ export const getContext = cache(async () => {
   const user = data.user;
   const profile = await run<{ id: string; full_name: string; role: Role; active: boolean } | null>('profil', () =>
     sb.from('profiles').select('id,full_name,role,active').eq('id', user.id).maybeSingle());
-  const branches = profile?.active
-    ? await run<Branch[]>('cabang', () => sb.from('branches').select('id,code,name,city,is_demo,active,data_origin').eq('active', true).order('name'))
-    : [];
 
-  const hasReal = branches.some((b) => !b.is_demo);
-  const hasDemo = branches.some((b) => b.is_demo);
-  const store = await cookies();
-  let scope: Scope = store.get('scope')?.value === 'demo' ? 'demo' : 'real';
-  if (scope === 'real' && !hasReal && hasDemo) scope = 'demo';
-  if (scope === 'demo' && !hasDemo) scope = 'real';
-  const scopeLocked = !(hasReal && hasDemo);
-  const scopeBranches = branches.filter((b) => b.is_demo === (scope === 'demo'));
-  const cb = store.get('branch')?.value;
-  const picked = scopeBranches.find((b) => b.id === cb) ?? null;
-  const branchIds = picked ? [picked.id] : scopeBranches.length ? scopeBranches.map((b) => b.id) : [NONE];
-  return { sb, user, profile, role: (profile?.role ?? null) as Role | null, branches, scope, scopeLocked, scopeBranches, branch: picked, branchIds };
+  // Hanya cabang nyata (bukan demo). Lokasi aktif selalu Cidodol; tidak ada pilihan lain.
+  const real = profile?.active
+    ? await run<Branch[]>('lokasi', () => sb.from('branches').select('id,code,name,city,is_demo,active,data_origin').eq('active', true).eq('is_demo', false).eq('data_origin', 'real').order('name'))
+    : [];
+  const location = real.find((b) => b.code === LOCATION_CODE) ?? real[0] ?? null;
+  const branches = location ? [location] : [];
+  const branchIds = location ? [location.id] : [NONE];
+  const scope: Scope = 'real';
+  return { sb, user, profile, role: (profile?.role ?? null) as Role | null, branches, scope, scopeBranches: branches, branch: location, branchIds };
 });
 export type Ctx = NonNullable<Awaited<ReturnType<typeof getContext>>>;
 

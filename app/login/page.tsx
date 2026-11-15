@@ -26,16 +26,16 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <div />
           <div>
             <p className="max-w-md text-3xl font-semibold leading-snug">Setiap unit punya nomor seri. Setiap stok punya riwayat.</p>
-            <p className="mt-3 max-w-md text-ink-300">Sistem internal untuk penjualan, inventory, customer service, dan garansi.</p>
+            <p className="mt-3 max-w-md text-ink-300">Sistem informasi untuk penjualan, inventaris, layanan pelanggan, dan garansi di toko Cidodol.</p>
           </div>
-          <p className="font-mono text-xs text-ink-300">Sistem Informasi Penjualan Adrian Laptop Store</p>
+          <p className="font-mono text-xs text-ink-300">Sistem Informasi Manajemen Adrian Laptop Store · Cidodol</p>
         </div>
       </section>
       <section className="flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <Image src="/logo1.png" alt="Adrian Laptop Store" width={2172} height={724} className="mb-6 h-12 w-auto lg:hidden" />
           <h1 className="text-2xl font-semibold">Masuk</h1>
-          <p className="mb-6 mt-1 text-sm text-ink-500">Sistem Informasi Penjualan Adrian Laptop Store — khusus pengguna internal.</p>
+          <p className="mb-6 mt-1 text-sm text-ink-500">Masuk dengan akun yang diberikan oleh admin toko.</p>
           {notice && <div role="alert" className="mb-4 rounded-md bg-warn-soft px-3 py-2 text-sm text-warn">{notice}</div>}
           <ActionForm action={loginAction} className="space-y-4">
             <label className="block"><span className="label">Email</span><input className="input" name="email" type="email" autoComplete="username" required /></label>

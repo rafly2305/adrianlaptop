@@ -10,10 +10,8 @@ Tidak ada nilai rahasia yang perlu dikirim ke siapa pun. Semua nilai diisi sendi
 ## 1. Supabase (Free)
 1. supabase.com → New project. Pilih region **Singapore** (dekat Vercel `sin1`). Simpan database password di password manager.
 2. **Authentication → Providers → Email**: matikan *Allow new users to sign up*. (Akun hanya dibuat admin.) **URL Configuration**: Site URL `https://adrianlaptop.vercel.app`.
-3. **SQL Editor** → jalankan berurutan (satu per satu, tunggu sukses):
-   `supabase/migrations/0001_schema.sql` → `0002_rls.sql` → `0003_functions.sql` → `0004_audit_triggers.sql`.
-   (Alternatif: Supabase CLI `supabase link` lalu `supabase db push`.)
-4. Seed: `supabase/seed/00_base.sql` → `01_cidodol.sql`. Opsional (staging/demo): `02_demo.sql`. Semua idempoten (aman diulang).
+3. **SQL Editor**: ikuti `database/PETUNJUK.md` (4 file `database/LANGKAH-1…4`, dijalankan berurutan, satu per Run). Database lama: jalankan 0008 → 0009 saja.
+4. Data awal Cidodol + harga estimasi sudah termasuk di `LANGKAH-4_data-cidodol.sql`. Tidak ada seed demo.
 5. **Project Settings → API**: catat *Project URL*, *anon/publishable key*, dan *service_role key* (rahasia).
 
 ## 2. Super Admin pertama (lokal, bukan di Vercel)
@@ -23,13 +21,13 @@ npm install
 BOOTSTRAP_EMAIL=anda@contoh.com BOOTSTRAP_PASSWORD='<min 12 karakter acak>' BOOTSTRAP_NAME='Nama Anda' \
   node --env-file=.env.local scripts/bootstrap-admin.mjs
 ```
-Akun lain (Admin cabang, Sales, dll., termasuk **akun demo**) dibuat dari **Pengaturan → Buat akun pengguna**. Akun demo: centang hanya cabang bertanda (Demo) sehingga tidak bisa melihat Cidodol. Ubah password: Pengaturan → “Atur ulang password”.
+Akun lain (Admin, Kasir, dll.) dibuat dari **User Management**; semua akun otomatis memiliki akses ke lokasi Cidodol. Setelah login pertama, isi **Pengaturan → QRIS & Rekening** agar metode QRIS/Transfer Bank siap dipakai.
 
 ## 3. Uji lokal sebelum deploy
 ```bash
 npm run typecheck && npm run lint && npm run build && npm run dev
 ```
-Jalankan juga `supabase/tests/rls_and_rpc_test.sql` di **project staging** (lihat TESTING.md).
+Jalankan juga `supabase/tests/pos_test.sql` di **project staging** (lihat TESTING.md).
 
 ## 4. Vercel — memakai project & domain yang sama
 1. Taruh kode baru di **branch baru** repo yang terhubung ke project Vercel yang ada (pastikan `Dockerfile.vercel`/`vercel.json` lama **tidak** ikut di branch itu).

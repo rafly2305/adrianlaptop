@@ -29,14 +29,14 @@ export default async function ProductDetail({ params }: { params: Promise<{ id: 
     <>
       <PageHeader title={p.name} sub={<Chip>{p.sku}</Chip>} actions={<Link className="btn-ghost" href="/inventory?view=products">Kembali</Link>} />
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card title="Stok per cabang" className="lg:col-span-1">
+        <Card title={`Stok di ${ctx.branch?.name ?? 'Cidodol'}`} className="lg:col-span-1">
           <ul className="space-y-1 text-sm">{ctx.scopeBranches.map((b) => (<li key={b.id} className="flex justify-between"><span>{b.name}</span><span><b>{nf(sm.get(b.id)?.available ?? 0)}</b> tersedia / {nf(sm.get(b.id)?.total ?? 0)}</span></li>))}</ul>
         </Card>
         {write && p.tracking === 'quantity' && (<>
           <Card title="Tambah stok">
             <ActionForm action={receiveQtyAction} resetOnSuccess className="space-y-3">
               <input type="hidden" name="product_id" value={p.id} />
-              <Field label="Cabang"><select className="input" name="branch_id" required defaultValue={ctx.branch?.id ?? ctx.scopeBranches[0]?.id}>{ctx.scopeBranches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></Field>
+              <input type="hidden" name="branch_id" value={ctx.branch?.id ?? ''} />
               <Field label="Jumlah"><input className="input" name="qty" type="number" min={1} required /></Field>
               <Field label="Keterangan"><input className="input" name="reason" /></Field>
               <SubmitButton>Tambah</SubmitButton>
@@ -45,7 +45,7 @@ export default async function ProductDetail({ params }: { params: Promise<{ id: 
           <Card title="Penyesuaian stok">
             <ActionForm action={adjustQtyAction} resetOnSuccess className="space-y-3">
               <input type="hidden" name="product_id" value={p.id} />
-              <Field label="Cabang"><select className="input" name="branch_id" required defaultValue={ctx.branch?.id ?? ctx.scopeBranches[0]?.id}>{ctx.scopeBranches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></Field>
+              <input type="hidden" name="branch_id" value={ctx.branch?.id ?? ''} />
               <Field label="Selisih (+/-)" hint="Contoh: -2 bila hilang/rusak. Stok tidak boleh jadi negatif."><input className="input" name="delta" type="number" required /></Field>
               <Field label="Alasan (wajib)"><input className="input" name="reason" required minLength={3} /></Field>
               <SubmitButton confirm="Simpan penyesuaian stok?">Sesuaikan</SubmitButton>
@@ -55,8 +55,8 @@ export default async function ProductDetail({ params }: { params: Promise<{ id: 
         {p.tracking === 'serialized' && (
           <Card title={`Unit (${units.length})`} className="lg:col-span-2">
             {units.length === 0 ? <Empty title="Belum ada unit pada cakupan ini" /> : (
-              <TableWrap><table className="tbl"><thead><tr><th>Kode</th><th>Nomor seri</th><th>Cabang</th><th>Status</th></tr></thead><tbody>{units.map((u) => (
-                <tr key={u.id}><td><Link className="text-brand underline" href={`/inventory/units/${u.id}`}><Chip>{u.internal_asset_code}</Chip></Link></td><td>{u.serial_number ? <Chip>{u.serial_number}</Chip> : <span className="text-xs text-warn">belum ada</span>}</td><td>{u.branches?.name}</td><td><StatusBadge map={UNIT_STATUS} value={u.status} /></td></tr>))}</tbody></table></TableWrap>)}
+              <TableWrap><table className="tbl"><thead><tr><th>Kode</th><th>Nomor seri</th><th>Status</th></tr></thead><tbody>{units.map((u) => (
+                <tr key={u.id}><td><Link className="text-brand underline" href={`/inventory/units/${u.id}`}><Chip>{u.internal_asset_code}</Chip></Link></td><td>{u.serial_number ? <Chip>{u.serial_number}</Chip> : <span className="text-xs text-warn">belum ada</span>}</td><td><StatusBadge map={UNIT_STATUS} value={u.status} /></td></tr>))}</tbody></table></TableWrap>)}
           </Card>)}
       </div>
       {write && (<>

@@ -5,7 +5,7 @@ import { run } from '@/lib/db';
 import { can } from '@/lib/permissions';
 import { TICKET_STATUS, WARRANTY_STATE } from '@/lib/labels';
 import { fdate, fdatetime } from '@/lib/format';
-import { Card, Chip, DemoTag, Field, PageHeader, StatusBadge } from '@/components/ui';
+import { Card, Chip, Field, PageHeader, StatusBadge } from '@/components/ui';
 import { ActionForm, SubmitButton } from '@/components/ActionForm';
 import { PrintButton } from '@/components/PrintButton';
 import { updateTicketAction } from '../actions';
@@ -17,7 +17,7 @@ export default async function TicketDetail({ params }: { params: Promise<{ id: s
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const ctx = await requirePage('service.view');
   const sb = ctx.sb;
-  const t = await run<Row | null>('tiket', () => sb.from('service_tickets').select('*, customers(name,phone,address), branches(name,is_demo), inventory_units(id,internal_asset_code,serial_number,serial_status,products(name)), sales(id,invoice_no), assignee:profiles!assigned_to(full_name)').eq('id', id).maybeSingle());
+  const t = await run<Row | null>('tiket', () => sb.from('service_tickets').select('*, customers(name,phone,address), branches(name), inventory_units(id,internal_asset_code,serial_number,serial_status,products(name)), sales(id,invoice_no), assignee:profiles!assigned_to(full_name)').eq('id', id).maybeSingle());
   if (!t) notFound();
   const [hist, staff] = await Promise.all([
     run<Row[]>('riwayat tiket', () => sb.from('service_ticket_history').select('id,kind,status,note,created_at,profiles(full_name)').eq('ticket_id', id).order('created_at', { ascending: false })),
@@ -26,12 +26,12 @@ export default async function TicketDetail({ params }: { params: Promise<{ id: s
   const write = can(ctx.role, 'service.write');
   return (
     <>
-      <PageHeader title={`Tiket ${t.ticket_no}`} sub={<span className="flex flex-wrap items-center gap-2"><StatusBadge map={TICKET_STATUS} value={t.status} /><StatusBadge map={WARRANTY_STATE} value={t.warranty_state} />{t.branches?.is_demo && <DemoTag />}</span>}
+      <PageHeader title={`Tiket ${t.ticket_no}`} sub={<span className="flex flex-wrap items-center gap-2"><StatusBadge map={TICKET_STATUS} value={t.status} /><StatusBadge map={WARRANTY_STATE} value={t.warranty_state} /></span>}
         actions={<><PrintButton label="Cetak" /><Link className="btn-ghost no-print" href="/service">Kembali</Link></>} />
       <div className="grid gap-4 lg:grid-cols-3">
         <Card title="Rincian" className="lg:col-span-2">
           <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-            <div><dt className="text-ink-500">Cabang</dt><dd>{t.branches?.name}</dd></div>
+            <div><dt className="text-ink-500">Lokasi</dt><dd>{t.branches?.name}</dd></div>
             <div><dt className="text-ink-500">Tanggal masuk / estimasi</dt><dd>{fdate(t.received_at)} / {t.eta ? fdate(t.eta) : '-'}</dd></div>
             <div><dt className="text-ink-500">Pelanggan</dt><dd>{t.customers?.name ?? '-'} {t.customers?.phone ?? ''}</dd></div>
             <div><dt className="text-ink-500">Penanggung jawab</dt><dd>{t.assignee?.full_name ?? 'belum ditentukan'}</dd></div>

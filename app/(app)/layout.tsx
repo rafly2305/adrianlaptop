@@ -2,27 +2,24 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Bell } from 'lucide-react';
 import { Shell, type NavChild, type NavGroup, type NavItem } from '@/components/Shell';
-import { ScopeControls } from '@/components/ScopeControls';
 import { getContext } from '@/lib/context';
 import { can, ROLE_LABEL, type Perm } from '@/lib/permissions';
 import { logoutAction } from '../login/actions';
-import { setScopeAction } from './actions';
 import { run } from '@/lib/db';
 
 type NavDef = { href: string; label: string; icon: NavItem['icon']; perm: Perm; match?: string[]; children?: (NavChild & { perm: Perm })[] };
 const NAV: { title: string; items: NavDef[] }[] = [
   { title: 'Menu Utama', items: [
     { href: '/', label: 'Dashboard', icon: 'dashboard', perm: 'dashboard.view' },
-    { href: '/inventory/summary', label: 'Inventory', icon: 'inventory', perm: 'inventory.view', children: [
-      { href: '/inventory/summary', label: 'Ringkasan Inventory', perm: 'inventory.view' },
+    { href: '/inventory/summary', label: 'Inventaris', icon: 'inventory', perm: 'inventory.view', children: [
+      { href: '/inventory/summary', label: 'Ringkasan Inventaris', perm: 'inventory.view' },
       { href: '/inventory/receive', label: 'Barang Masuk', perm: 'inventory.write' },
       { href: '/inventory/issue', label: 'Barang Keluar', perm: 'inventory.write' },
       { href: '/inventory/opname', label: 'Stok Opname', perm: 'inventory.write' },
-      { href: '/inventory/transfers', label: 'Transfer Barang', perm: 'inventory.view' },
-      { href: '/inventory/low', label: 'Stok Menipis', perm: 'inventory.view' },
+            { href: '/inventory/low', label: 'Stok Menipis', perm: 'inventory.view' },
       { href: '/inventory/movements', label: 'Riwayat Pergerakan Stok', perm: 'inventory.view' },
     ] },
-    { href: '/inventory/products', label: 'Produk', icon: 'products', perm: 'inventory.view', match: ['=/inventory', '/inventory/units', '/inventory/import'] },
+    { href: '/inventory/products', label: 'Produk', icon: 'products', perm: 'inventory.view', match: ['=/inventory', '/inventory/units', '/inventory/import', '/inventory/products'] },
     { href: '/pos', label: 'Penjualan (POS)', icon: 'pos', perm: 'pos.sell' },
     { href: '/sales', label: 'Riwayat Transaksi', icon: 'sales', perm: 'sales.view' },
     { href: '/service', label: 'Customer Service', icon: 'service', perm: 'service.view' },
@@ -83,8 +80,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     })),
   })).filter((g) => g.items.length > 0);
   return (
-    <Shell nav={nav} user={ctx.profile.full_name} role={ROLE_LABEL[ctx.role]} logout={logoutAction}
-      controls={<ScopeControls branches={ctx.scopeBranches} branchId={ctx.branch?.id ?? null} scope={ctx.scope} scopeLocked={ctx.scopeLocked} action={setScopeAction} />}
+    <Shell nav={nav} user={ctx.profile.full_name} role={ROLE_LABEL[ctx.role]} location={ctx.branch?.name ?? 'Cidodol'} logout={logoutAction}
       notifications={<Notifications ids={ctx.branchIds} scope={ctx.scope} role={ctx.role} />}>
       {children}
     </Shell>

@@ -1,30 +1,21 @@
 # Pengujian
 
-## Sudah diverifikasi (di lingkungan penyusun)
-- Sintaks TypeScript semua file: **0 error sintaks** (tsc). Pemeriksaan tipe penuh **belum** bisa karena paket `next`/`react` tidak terpasang di sana.
-- Kurung SQL seimbang di semua file; 21+ fungsi plpgsql terdefinisi.
-- Seed Cidodol: 49 unit berseri (kode `UNIT-CDL-000001…049`), 7 produk aksesori = 46 pcs, SKU unik, nomor referensi 20 & 57 tidak dibuat.
-- Simulasi data demo: saldo aksesori tidak negatif, saldo = jumlah pergerakan, jumlah unit terjual = jumlah penjualan aktif, nomor seri demo unik.
+## Sudah dilakukan (di lingkungan penyusun revisi ini)
+Lingkungan tanpa internet & PostgreSQL: `npm install`, `next build`, dan database **tidak dapat dijalankan**.
+- `lib/pos-calc.ts` (rumus diskon/pajak) dijalankan dengan Node: contoh Rp5.000.000, diskon 10%, pajak 11% → diskon 500.000, setelah diskon 4.500.000, pajak 495.000, **total 4.995.000** (sesuai contoh). 200.000 kasus acak dibandingkan dengan aritmetika BigInt eksak: **0 selisih**. Validasi persen (negatif, >100, >2 desimal) diuji.
+- Pemeriksaan TypeScript dengan stub modul eksternal: menemukan & memperbaiki 1 kesalahan sintaks; sisa peringatan hanya artefak stub (bukan dari kode revisi).
+- Seed Cidodol dibuat ulang: `01_cidodol.sql` identik byte-per-byte dengan sebelum revisi (49 unit, 46 pcs aksesori).
+- Penelusuran teks: tidak ada lagi `DemoTag`, `ScopeControls`, pemilih data demo, atau tulisan “Multi-Cabang” di kode UI.
 
-## BELUM diuji — wajib dijalankan Anda (urut)
+## BELUM diuji — wajib Anda jalankan (urut)
 | # | Tes | Cara |
 |---|---|---|
-| 1 | `npm run typecheck` | Perbaiki bila ada error tipe (kemungkinan: beberapa tipe hasil query Supabase, ketidakcocokan versi paket) |
-| 2 | `npm run lint`, `npm run build` | Harus sukses |
-| 3 | Migration 0001→0004 + seed di Supabase **staging** | Tidak ada error SQL |
-| 4 | `supabase/tests/rls_and_rpc_test.sql` | Harus berakhir “SEMUA TES LULUS”. Mencakup: isolasi cabang, HR tak bisa baca data, tulis langsung ditolak, unit tidak bisa terjual 2×, diskon > batas ditolak, void mengembalikan unit, stok tak bisa negatif, transfer real→demo ditolak & transfer demo benar, serial ganda ditolak |
-| 5 | Login/logout, akses halaman terlarang per role | Manual dengan 3–4 akun uji |
-| 6 | Admin cabang A tidak melihat cabang B (UI + coba URL langsung) | Manual |
-| 7 | Pencarian, filter, pagination, ekspor CSV (inventory & penjualan) | Manual |
-| 8 | POS end-to-end: jual unit berseri → status Terjual, tidak muncul di pencarian POS, struk tercetak; jual aksesori; retur; void | Manual (gunakan **mode Demo**) |
-| 9 | Impor CSV (validasi saja → simpan), input massal serial, duplikasi ditolak | Manual |
-| 10 | Tiket → hubung ke unit → status garansi “belum diverifikasi” bila belum ada data | Manual |
-| 11 | Dashboard: angka sama dengan Laporan untuk periode & cabang yang sama | Bandingkan manual |
-| 12 | `/api/health`, matikan jaringan/ubah URL Supabase sementara ⇒ halaman error jelas (bukan kosong) | Manual di preview |
-| 13 | Pastikan tidak ada secret di repo: `git grep -n "service_role\|SUPABASE_SERVICE"` hanya di `lib/`, `.env.example`, docs | Manual |
-| 14 | Preview Vercel dengan env yang benar, lalu promote | Lihat DEPLOY.md |
-
-## Risiko yang diketahui
-- Nama relasi PostgREST (`stock_transfers_from_branch_id_fkey`, alias `profiles!assigned_to`) bergantung pada penamaan default Postgres; bila error “relationship not found”, sesuaikan nama FK dari pesan error.
-- Versi paket di `package.json` memakai rentang caret dan belum dipasang; commit `package-lock.json` setelah `npm install` berhasil.
-- Dashboard/laporan memotong 5.000/10.000 baris dan memberi peringatan; untuk volume lebih besar perlu agregasi SQL (view/RPC).
+| 1 | `npm install && npm run typecheck && npm run lint && npm run build` | Harus sukses |
+| 2 | Jalankan `0008_single_location_pos.sql` di Supabase staging/SQL Editor | Tanpa error; cek 3 query di akhir file |
+| 3 | `supabase/tests/pos_test.sql` | Selesai tanpa error (rollback otomatis) |
+| 4 | Login/logout; akun & Logout di dasar sidebar (desktop, collapsed, HP) | Manual |
+| 5 | POS Tunai/QRIS/Transfer/Debit, diskon & pajak, popup “Pembayaran Berhasil!”, detail transaksi, cetak struk/invoice | Manual (isi QRIS & rekening di Pengaturan dulu) |
+| 6 | Klik “Konfirmasi pembayaran” berkali-kali / refresh saat memproses | Harus hanya 1 transaksi |
+| 7 | Role Kasir: diskon > batas & pajak berbeda ditolak | Manual |
+| 8 | CRUD produk/unit/stok/service/garansi, pencarian, ekspor CSV | Manual |
+| 9 | Tampilan HP/tablet semua halaman | DevTools responsive / perangkat nyata |

@@ -1,8 +1,8 @@
 export type Role = 'super_admin' | 'branch_admin' | 'inventory_staff' | 'sales' | 'service_staff' | 'finance' | 'hr';
 
 export const ROLE_LABEL: Record<Role, string> = {
-  super_admin: 'Super Admin / CEO', branch_admin: 'Admin Cabang', inventory_staff: 'Staf Inventory',
-  sales: 'Sales', service_staff: 'Customer Service / Warranty', finance: 'Finance', hr: 'HR',
+  super_admin: 'Super Admin', branch_admin: 'Admin', inventory_staff: 'Staf Inventaris',
+  sales: 'Kasir', service_staff: 'Customer Service', finance: 'Finance', hr: 'HR',
 };
 
 const ALL: Role[] = ['super_admin', 'branch_admin', 'inventory_staff', 'sales', 'service_staff', 'finance', 'hr'];

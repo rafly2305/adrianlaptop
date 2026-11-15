@@ -15,7 +15,7 @@ export default async function NewTicket({ searchParams }: { searchParams: Promis
       <PageHeader title="Tiket layanan baru" actions={<Link className="btn-ghost" href="/service">Kembali</Link>} />
       <Card className="max-w-3xl">
         <ActionForm action={createTicketAction} className="grid gap-4 sm:grid-cols-2">
-          <Field label="Cabang"><select className="input" name="branch_id" required defaultValue={ctx.branch?.id ?? ctx.scopeBranches[0]?.id}>{ctx.scopeBranches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></Field>
+          <input type="hidden" name="branch_id" value={ctx.branch?.id ?? ''} />
           <Field label="Jenis keluhan"><select className="input" name="category" required defaultValue=""><option value="" disabled>Pilih…</option>{TICKET_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
           <Field label="Nomor seri / kode unit" hint="Opsional, tetapi menghubungkan tiket ke riwayat unit & garansi."><input className="input font-mono" name="unit_ref" defaultValue={one(sp.unit)} /></Field>
           <Field label="Nomor transaksi (invoice)" hint="Opsional; otomatis terisi bila unit pernah dijual."><input className="input font-mono" name="sale_ref" /></Field>

@@ -11,8 +11,8 @@ export class AppError extends Error {
 const RPC_MESSAGES: Record<string, string> = {
   not_authenticated: 'Sesi berakhir. Silakan login kembali.',
   forbidden_role: 'Peran Anda tidak diizinkan melakukan tindakan ini.',
-  forbidden_branch: 'Anda tidak memiliki akses ke cabang ini.',
-  branch_not_found: 'Cabang tidak ditemukan atau tidak aktif.',
+  forbidden_branch: 'Anda tidak memiliki akses ke lokasi ini.',
+  branch_not_found: 'Lokasi tidak ditemukan atau tidak aktif.',
   product_not_found: 'Produk tidak ditemukan.',
   product_not_serialized: 'Produk ini dikelola per kuantitas, bukan per nomor seri.',
   product_not_quantity: 'Produk ini berseri; gunakan penerimaan unit.',
@@ -46,10 +46,17 @@ const RPC_MESSAGES: Record<string, string> = {
   invalid_reason: 'Alasan pengeluaran tidak valid.',
   opname_not_found: 'Stok opname tidak ditemukan.',
   opname_not_draft: 'Stok opname ini sudah selesai atau dibatalkan.',
-  opname_in_progress: 'Masih ada stok opname yang berjalan di cabang ini. Selesaikan atau batalkan dulu.',
+  opname_in_progress: 'Masih ada stok opname yang berjalan. Selesaikan atau batalkan dulu.',
   payment_insufficient: 'Uang diterima kurang dari total tagihan.',
   invalid_discount: 'Diskon transaksi tidak valid.',
   resolution_required: 'Isi hasil penyelesaian sebelum menutup tiket.',
+  invalid_percent: 'Persentase diskon/pajak harus antara 0 dan 100 (maksimal 2 angka desimal).',
+  tax_not_allowed: 'Tarif pajak harus sesuai pengaturan toko. Hanya Admin yang dapat mengubahnya.',
+  payment_not_verified: 'Pembayaran non-tunai harus diverifikasi terlebih dahulu sebelum dikonfirmasi.',
+  bank_not_configured: 'Rekening tujuan transfer belum diatur. Minta Super Admin mengisinya di Pengaturan.',
+  reference_required: 'Isi nomor referensi atau keterangan bukti transfer.',
+  approval_required: 'Isi kode persetujuan/nomor referensi dari mesin EDC (minimal 4 karakter).',
+  price_not_set: 'Harga jual produk belum diisi di data Produk. Isi harga terlebih dahulu.',
 };
 
 /** Pesan aman untuk pengguna. Detail teknis TIDAK ditampilkan (hanya di log server). */

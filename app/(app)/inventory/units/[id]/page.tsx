@@ -5,7 +5,7 @@ import { run } from '@/lib/db';
 import { can } from '@/lib/permissions';
 import { CONDITION, MOVEMENT, SALE_STATUS, SERIAL_STATUS, TICKET_STATUS, UNIT_STATUS, WARRANTY_STATE } from '@/lib/labels';
 import { fdate, fdatetime, rupiah } from '@/lib/format';
-import { Card, Chip, DemoTag, Empty, Field, PageHeader, StatusBadge } from '@/components/ui';
+import { Card, Chip, Empty, Field, PageHeader, StatusBadge } from '@/components/ui';
 import { ActionForm, SubmitButton } from '@/components/ActionForm';
 import { addInspectionAction, setSerialAction, setUnitStatusAction, updateUnitAction } from '../../actions';
 
@@ -16,7 +16,7 @@ export default async function UnitDetail({ params }: { params: Promise<{ id: str
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const ctx = await requirePage('inventory.view');
   const sb = ctx.sb;
-  const unit = await run<Row | null>('unit', () => sb.from('inventory_units').select('*, products(*, categories(name)), branches(name,code,is_demo)').eq('id', id).maybeSingle());
+  const unit = await run<Row | null>('unit', () => sb.from('inventory_units').select('*, products(*, categories(name)), branches(name,code)').eq('id', id).maybeSingle());
   if (!unit) notFound();
   const [moves, sales, rets, tickets, wars, insp] = await Promise.all([
     run<Row[]>('gerak unit', () => sb.from('stock_movements').select('type,qty,reason,created_at,branches(name),profiles(full_name)').eq('unit_id', id).order('created_at', { ascending: false })),
@@ -33,7 +33,7 @@ export default async function UnitDetail({ params }: { params: Promise<{ id: str
 
   return (
     <>
-      <PageHeader title={p.name} sub={<span className="flex flex-wrap items-center gap-2"><Chip>{unit.internal_asset_code}</Chip>{unit.serial_number && <Chip>SN {unit.serial_number}</Chip>}<StatusBadge map={UNIT_STATUS} value={unit.status} />{unit.branches?.is_demo && <DemoTag />}</span>}
+      <PageHeader title={p.name} sub={<span className="flex flex-wrap items-center gap-2"><Chip>{unit.internal_asset_code}</Chip>{unit.serial_number && <Chip>SN {unit.serial_number}</Chip>}<StatusBadge map={UNIT_STATUS} value={unit.status} /></span>}
         actions={<Link href="/inventory" className="btn-ghost">Kembali</Link>} />
       <div className="grid gap-4 lg:grid-cols-3">
         <Card title="Informasi unit" className="lg:col-span-2">
@@ -41,7 +41,7 @@ export default async function UnitDetail({ params }: { params: Promise<{ id: str
             <div><dt className="text-ink-500">SKU produk</dt><dd><Link className="text-brand underline" href={`/inventory/products/${p.id}`}>{p.sku}</Link></dd></div>
             <div><dt className="text-ink-500">Merek / model</dt><dd>{[p.brand, p.model].filter(Boolean).join(' ') || '-'}</dd></div>
             <div className="sm:col-span-2"><dt className="text-ink-500">Spesifikasi</dt><dd>{spec || 'tidak diketahui'}{p.needs_verification && <span className="ml-2 text-warn">(perlu verifikasi fisik)</span>}</dd></div>
-            <div><dt className="text-ink-500">Cabang</dt><dd>{unit.branches?.name}</dd></div>
+            <div><dt className="text-ink-500">Lokasi</dt><dd>{unit.branches?.name}</dd></div>
             <div><dt className="text-ink-500">Kondisi</dt><dd>{CONDITION[unit.condition]}</dd></div>
             <div><dt className="text-ink-500">Tanggal masuk</dt><dd>{fdate(unit.received_at)}</dd></div>
             <div><dt className="text-ink-500">Harga modal</dt><dd>{unit.cost_price != null ? rupiah(unit.cost_price) : 'belum diisi'}</dd></div>
@@ -53,13 +53,13 @@ export default async function UnitDetail({ params }: { params: Promise<{ id: str
         </Card>
         <Card title="Nomor seri pabrikan">
           <p className="mb-2 text-sm"><StatusBadge map={SERIAL_STATUS} value={unit.serial_status} /></p>
-          {write && unit.serial_status !== 'sintetis_demo' ? (
+          {write ? (
             <ActionForm action={setSerialAction} className="space-y-3">
               <input type="hidden" name="unit_id" value={unit.id} />
               <Field label="Nomor seri" hint="Isi hanya dengan nomor seri asli dari perangkat. Kosongkan bila belum diketahui."><input className="input font-mono" name="serial" defaultValue={unit.serial_number ?? ''} maxLength={80} /></Field>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="verified" defaultChecked={unit.serial_status === 'terverifikasi'} /> Sudah dicocokkan dengan perangkat fisik</label>
               <SubmitButton>Simpan nomor seri</SubmitButton>
-            </ActionForm>) : <p className="text-sm text-ink-500">{unit.serial_status === 'sintetis_demo' ? 'Nomor seri sintetis (demo), tidak dapat diubah.' : 'Hanya staf inventory yang dapat mengubah.'}</p>}
+            </ActionForm>) : <p className="text-sm text-ink-500">Hanya staf inventaris yang dapat mengubah.</p>}
         </Card>
 
         {write && (
@@ -116,7 +116,7 @@ export default async function UnitDetail({ params }: { params: Promise<{ id: str
             </ActionForm>
           </Card>)}
 
-        <Card title="Riwayat stok & perpindahan cabang" className="lg:col-span-3">
+        <Card title="Riwayat stok unit" className="lg:col-span-3">
           <ul className="divide-y divide-ink-300/30 text-sm">{moves.map((m, i) => (<li key={i} className="flex flex-wrap justify-between gap-2 py-1.5"><span>{MOVEMENT[m.type] ?? m.type} · {m.branches?.name} {m.reason ? `· ${m.reason}` : ''}</span><span className="text-ink-500">{fdatetime(m.created_at)} · {m.profiles?.full_name ?? 'sistem/seed'}</span></li>))}</ul>
         </Card>
       </div>

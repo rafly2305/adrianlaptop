@@ -33,11 +33,10 @@ export default async function Movements({ searchParams }: { searchParams: Promis
         <button className="btn-primary">Terapkan</button>
       </form>
       {rows.length === 0 ? <Empty title="Tidak ada pergerakan pada filter ini" /> : (
-        <TableWrap><table className="tbl"><thead><tr><th>Tanggal</th><th>Produk</th><th>Cabang</th><th>Jenis</th><th className="text-right">Perubahan</th><th className="text-right">Sebelum</th><th className="text-right">Sesudah</th><th>Referensi</th><th>Oleh</th></tr></thead><tbody>
+        <TableWrap><table className="tbl"><thead><tr><th>Tanggal</th><th>Produk</th><th>Jenis</th><th className="text-right">Perubahan</th><th className="text-right">Sebelum</th><th className="text-right">Sesudah</th><th>Referensi</th><th>Oleh</th></tr></thead><tbody>
           {rows.map((m) => (<tr key={m.id}>
             <td className="whitespace-nowrap">{fdatetime(m.created_at)}</td>
             <td>{m.products?.name}{m.inventory_units && <div><Chip>{m.inventory_units.internal_asset_code}</Chip></div>}</td>
-            <td>{m.branches?.name}</td>
             <td><Badge tone="info">{MOVEMENT[m.type] ?? m.type}</Badge></td>
             <td className={`text-right font-medium ${m.qty < 0 ? 'text-bad' : m.qty > 0 ? 'text-ok' : ''}`}>{m.qty > 0 ? '+' : ''}{nf(m.qty)}</td>
             <td className="text-right">{m.stock_before == null ? '-' : nf(m.stock_before)}</td><td className="text-right">{m.stock_after == null ? '-' : nf(m.stock_after)}</td>

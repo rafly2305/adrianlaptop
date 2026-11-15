@@ -21,8 +21,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const none = !units.length && !prods.length && !sales.length && !tickets.length;
   return (
     <>
-      <PageHeader title={`Hasil untuk “${q}”`} sub={`Cakupan: ${ctx.branch?.name ?? 'semua cabang'}`} />
-      {none ? <Empty title="Tidak ada hasil" hint="Coba nomor seri lengkap, kode unit (UNIT-…), SKU, atau nomor invoice/tiket. Periksa juga pemilih cabang dan jenis data di header." /> : (
+      <PageHeader title={`Hasil untuk “${q}”`} sub={`Cakupan: toko ${ctx.branch?.name ?? 'Cidodol'}`} />
+      {none ? <Empty title="Tidak ada hasil" hint="Coba nomor seri lengkap, kode unit (UNIT-…), SKU, atau nomor invoice/tiket." /> : (
         <div className="grid gap-4 md:grid-cols-2">
           {units.length > 0 && <Card title="Unit / nomor seri"><ul className="space-y-1 text-sm">{units.map((u) => <li key={u.id}><Link className="text-brand underline" href={`/inventory/units/${u.id}`}><Chip>{u.internal_asset_code}</Chip></Link> {u.serial_number && <Chip>SN {u.serial_number}</Chip>} {u.products?.name}</li>)}</ul></Card>}
           {prods.length > 0 && <Card title="Produk"><ul className="space-y-1 text-sm">{prods.map((p) => <li key={p.id}><Link className="text-brand underline" href={`/inventory/products/${p.id}`}><Chip>{p.sku}</Chip></Link> {p.name}</li>)}</ul></Card>}

@@ -16,7 +16,6 @@ export function StatusBadge({ map, value }: { map: Record<string, [string, Tone]
 }
 /** Kode/serial: komponen identitas visual aplikasi */
 export function Chip({ children }: { children: ReactNode }) { return <span className="chip">{children}</span>; }
-export function DemoTag() { return <Badge tone="demo">DEMO</Badge>; }
 
 export function PageHeader({ title, sub, actions }: { title: string; sub?: ReactNode; actions?: ReactNode }) {
   return (

@@ -16,8 +16,8 @@ export default async function ReceivePage() {
     run<M[]>('riwayat masuk', () => ctx.sb.from('stock_movements').select('id,created_at,qty,reason,ref_no,supplier,note,products(name),branches(name),profiles:actor_id(full_name),inventory_units(internal_asset_code)').eq('type', 'receive').in('branch_id', ctx.branchIds).order('created_at', { ascending: false }).limit(20)),
   ]);
   const ser = prods.filter((p) => p.tracking === 'serialized'), qty = prods.filter((p) => p.tracking === 'quantity');
-  const def = ctx.branch?.id ?? ctx.scopeBranches[0]?.id;
-  const Branch = () => (<Field label="Cabang tujuan"><select className="input" name="branch_id" required defaultValue={def}>{ctx.scopeBranches.map((b) => <option key={b.id} value={b.id}>{b.name}{b.is_demo ? ' (Demo)' : ''}</option>)}</select></Field>);
+  const def = ctx.branch?.id ?? '';
+  const Branch = () => (<Field label="Lokasi penerimaan"><input type="hidden" name="branch_id" value={def} /><div className="input bg-canvas text-ink-500" aria-readonly>{ctx.branch?.name ?? 'Cidodol'}</div></Field>);
   const Cond = () => (<Field label="Kondisi"><select className="input" name="condition" defaultValue="belum_diperiksa">{Object.entries(CONDITION).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>);
   return (
     <>
@@ -59,8 +59,8 @@ export default async function ReceivePage() {
       </div>
       <h2 className="mb-2 mt-6 font-semibold">Riwayat barang masuk</h2>
       {recent.length === 0 ? <Empty title="Belum ada barang masuk" /> : (
-        <TableWrap><table className="tbl"><thead><tr><th>Tanggal</th><th>Produk</th><th>Cabang</th><th className="text-right">Jml</th><th>Pemasok</th><th>Referensi</th><th>Petugas</th></tr></thead><tbody>
-          {recent.map((m) => (<tr key={m.id}><td className="whitespace-nowrap">{fdatetime(m.created_at)}</td><td>{m.products?.name}{m.inventory_units && <div><Chip>{m.inventory_units.internal_asset_code}</Chip></div>}</td><td>{m.branches?.name}</td><td className="text-right text-ok">+{nf(m.qty)}</td><td>{m.supplier ?? '-'}</td><td className="text-xs">{m.ref_no && <Chip>{m.ref_no}</Chip>} {m.note ?? m.reason}</td><td>{m.profiles?.full_name ?? '-'}</td></tr>))}
+        <TableWrap><table className="tbl"><thead><tr><th>Tanggal</th><th>Produk</th><th className="text-right">Jml</th><th>Pemasok</th><th>Referensi</th><th>Petugas</th></tr></thead><tbody>
+          {recent.map((m) => (<tr key={m.id}><td className="whitespace-nowrap">{fdatetime(m.created_at)}</td><td>{m.products?.name}{m.inventory_units && <div><Chip>{m.inventory_units.internal_asset_code}</Chip></div>}</td><td className="text-right text-ok">+{nf(m.qty)}</td><td>{m.supplier ?? '-'}</td><td className="text-xs">{m.ref_no && <Chip>{m.ref_no}</Chip>} {m.note ?? m.reason}</td><td>{m.profiles?.full_name ?? '-'}</td></tr>))}
         </tbody></table></TableWrap>)}
     </>
   );

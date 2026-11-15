@@ -15,8 +15,8 @@ export async function createUserAction(_p: ActionState, fd: FormData): Promise<A
   return safe(async () => {
     const ctx = await requireAction('users.manage');
     const v = parse(z.object({ email: z.string().email('Email tidak valid'), password: z.string().min(12, 'Password minimal 12 karakter').max(72), full_name: z.string().min(2, 'Nama wajib diisi').max(100), role: ROLE }), fd);
-    const branchIds = fd.getAll('branches').map(String).filter((b) => ctx.branches.some((x) => x.id === b));
-    if (v.role !== 'super_admin' && branchIds.length === 0) throw new AppError('validation', 'Pilih minimal satu cabang untuk peran ini.');
+    if (!ctx.branch) throw new AppError('config', 'Lokasi Cidodol tidak ditemukan di database.');
+    const branchIds = [ctx.branch.id];
     const admin = createAdminClient();
     const { data, error } = await admin.auth.admin.createUser({ email: v.email, password: v.password, email_confirm: true });
     if (error || !data.user) throw new AppError('validation', error?.message.includes('already') ? 'Email sudah terdaftar.' : 'Gagal membuat akun. Periksa email dan password.');
@@ -36,8 +36,8 @@ export async function updateUserAction(_p: ActionState, fd: FormData): Promise<A
     const v = parse(z.object({ id: uuid, full_name: z.string().min(2).max(100), role: ROLE, email: z.string().email('Email tidak valid').optional(), active: z.string().optional() }), fd);
     const active = v.active === 'on';
     if (v.id === ctx.user.id && (!active || v.role !== 'super_admin')) throw new AppError('validation', 'Anda tidak dapat menonaktifkan atau menurunkan peran akun Anda sendiri.');
-    const branchIds = fd.getAll('branches').map(String);
-    if (v.role !== 'super_admin' && branchIds.length === 0) throw new AppError('validation', 'Pilih minimal satu cabang untuk peran ini.');
+    if (!ctx.branch) throw new AppError('config', 'Lokasi Cidodol tidak ditemukan di database.');
+    const branchIds = [ctx.branch.id];
     if (v.email) {
       const { error } = await createAdminClient().auth.admin.updateUserById(v.id, { email: v.email, email_confirm: true });
       if (error) throw new AppError('validation', error.message.includes('already') ? 'Email sudah dipakai akun lain.' : 'Gagal mengubah email.', error);

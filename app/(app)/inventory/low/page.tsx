@@ -36,9 +36,9 @@ export default async function LowStock({ searchParams }: { searchParams: Promise
         <button className="btn-primary">Terapkan</button>
       </form>
       {rows.length === 0 ? <Empty title="Tidak ada produk yang stoknya menipis" hint="Atur batas minimal stok di bagian bawah halaman ini agar peringatan muncul." /> : (
-        <TableWrap><table className="tbl"><thead><tr><th>Produk</th><th>SKU</th><th>Cabang</th><th className="text-right">Stok</th><th className="text-right">Minimum</th><th>Status</th><th className="w-40">Indikator</th></tr></thead><tbody>
+        <TableWrap><table className="tbl"><thead><tr><th>Produk</th><th>SKU</th><th className="text-right">Stok</th><th className="text-right">Minimum</th><th>Status</th><th className="w-40">Indikator</th></tr></thead><tbody>
           {rows.map((r, i) => (<tr key={i}>
-            <td>{r.p.name}</td><td><span className="chip">{r.p.sku}</span></td><td>{r.branch}</td>
+            <td>{r.p.name}</td><td><span className="chip">{r.p.sku}</span></td>
             <td className="text-right font-medium">{nf(r.cur)}</td><td className="text-right">{nf(r.min)}</td>
             <td>{r.cur === 0 ? <Badge tone="bad">Habis</Badge> : <Badge tone="warn">Menipis</Badge>}</td>
             <td><div className="h-2 w-full rounded bg-canvas"><div className={`h-2 rounded ${r.cur === 0 ? 'bg-bad' : 'bg-warn'}`} style={{ width: `${Math.min(100, r.min > 0 ? Math.round((r.cur / r.min) * 100) : 0)}%` }} /></div></td>

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { AppError, friendly, isRedirect, logServer } from './errors';
 
-export type ActionState = { ok: boolean; message?: string; saleId?: string; invoice?: string; total?: number } | null;
+export type ActionState = { ok: boolean; message?: string; data?: Record<string, string | number | null> } | null;
 
 /** Bungkus server action: tangkap error -> pesan ramah; biarkan redirect lewat. */
 export async function safe(fn: () => Promise<ActionState | void>): Promise<ActionState> {

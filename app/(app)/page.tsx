@@ -65,15 +65,12 @@ export default async function Dashboard({ searchParams }: { searchParams: SP }) 
   const cat = new Map<string, number>();
   items.forEach((i) => { const n = i.products?.categories?.name ?? 'Tanpa kategori'; cat.set(n, (cat.get(n) ?? 0) + Number(i.line_total)); });
   const catData = [...cat.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  const byBranch = new Map<string, number>();
-  sales.forEach((s) => byBranch.set(s.branch_id, (byBranch.get(s.branch_id) ?? 0) + Number(s.total)));
-  const branchData = ctx.scopeBranches.map((b) => ({ name: b.name, value: byBranch.get(b.id) ?? 0 }));
   const tk = { open: 0, done: 0 } as Record<string, number>;
   tickets.forEach((t) => { if (t.status === 'selesai' || t.status === 'ditolak') tk.done++; else tk.open++; });
 
   return (
     <>
-      <PageHeader title="Dashboard" sub={`${ctx.branch ? ctx.branch.name : 'Semua cabang'}`}
+      <PageHeader title="Dashboard" sub={`Ringkasan toko ${ctx.branch?.name ?? 'Cidodol'}`}
         actions={
           <form className="flex flex-wrap items-end gap-2" method="get">
             <Field label="Dari"><input type="date" name="from" defaultValue={from} className="input" /></Field>
@@ -91,7 +88,7 @@ export default async function Dashboard({ searchParams }: { searchParams: SP }) 
       {can(ctx.role, 'sales.view') && (
         <div className="mt-4 grid gap-4 xl:grid-cols-3">
           <Card title="Omzet harian" className="xl:col-span-2">
-            {sales.length === 0 ? <Empty title="Belum ada transaksi pada periode ini" hint={scope === 'real' ? 'Transaksi akan muncul setelah penjualan pertama dicatat di menu Penjualan (POS).' : undefined} /> : <SalesLine data={series} />}
+            {sales.length === 0 ? <Empty title="Belum ada transaksi pada periode ini" hint="Transaksi akan muncul setelah penjualan pertama dicatat di menu Penjualan (POS)." /> : <SalesLine data={series} />}
             {sales.length >= 5000 && <p className="mt-2 text-xs text-warn">Data dipotong 5.000 transaksi; persempit periode.</p>}
           </Card>
           <Card title="Omzet per kategori">
@@ -109,9 +106,6 @@ export default async function Dashboard({ searchParams }: { searchParams: SP }) 
             </dl>
             <Link className="mt-3 inline-block text-sm text-brand underline" href="/service">Buka tiket</Link>
           </Card>
-        )}
-        {ctx.scopeBranches.length > 1 && can(ctx.role, 'sales.view') && (
-          <Card title="Perbandingan antar-cabang (omzet)">{branchData.every((b) => b.value === 0) ? <Empty title="Belum ada transaksi" /> : <BarSimple data={branchData} money label="Omzet per cabang" />}</Card>
         )}
         {canOps && (
           <Card title="Pergerakan stok terbaru">

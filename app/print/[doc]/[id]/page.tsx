@@ -28,12 +28,9 @@ export default async function PrintDoc({ params, searchParams }: { params: Promi
   const company = st('company_name', 'Adrian Laptop Store'), address = st('company_address'), phone = st('company_phone'), footer = st('receipt_footer', 'Terima kasih');
   const items = allItems.some((i) => i.active) ? allItems.filter((i) => i.active) : allItems;
   const pay = pays[0];
-  const itemDisc = items.reduce((a, i) => a + Number(i.discount), 0);
-  const txDisc = Math.max(Number(s.discount) - itemDisc, 0);
-  const dPct = Number(s.discount_percent) > 0 ? ` (${Number(s.discount_percent)}%)` : '';
-  const tPct = Number(s.tax_percent) > 0 ? ` (${Number(s.tax_percent)}%)` : '';
   const cust = s.customers as Row | null;
   const w = one(sp.w) === '58' ? 58 : 80;
+  const pct = (v: unknown) => `${Number(v ?? 0).toLocaleString('id-ID', { maximumFractionDigits: 2 })}%`;
   const sj = `SJ-${String(s.invoice_no).replace(/^INV-/, '')}`;
   const shipTo = (one(sp.alamat) ?? '').slice(0, 300) || cust?.address || '';
   const Logo = ({ h }: { h: number }) => <img src="/logo1.png" alt={company} style={{ height: h, width: 'auto', display: 'block' }} />;
@@ -70,9 +67,8 @@ export default async function PrintDoc({ params, searchParams }: { params: Promi
           </div>))}
           <hr />
           <div className="r"><span>Subtotal</span><span>{rupiah(s.subtotal)}</span></div>
-          {itemDisc > 0 && <div className="r"><span>Diskon item</span><span>-{rupiah(itemDisc)}</span></div>}
-          {txDisc > 0 && <div className="r"><span>Diskon{dPct}</span><span>-{rupiah(txDisc)}</span></div>}
-          {Number(s.tax) > 0 && <div className="r"><span>Pajak{tPct}</span><span>{rupiah(s.tax)}</span></div>}
+          {Number(s.discount) > 0 && <div className="r"><span>Diskon{Number(s.discount_percent) > 0 ? ` ${pct(s.discount_percent)}` : ''}</span><span>-{rupiah(s.discount)}</span></div>}
+          {Number(s.tax) > 0 && <div className="r"><span>Pajak{Number(s.tax_percent) > 0 ? ` ${pct(s.tax_percent)}` : ''}</span><span>{rupiah(s.tax)}</span></div>}
           <div className="r" style={{ fontWeight: 700, fontSize: fs + 2 }}><span>TOTAL</span><span>{rupiah(s.total)}</span></div>
           <hr />
           <div className="r"><span>Bayar ({pay?.method ?? s.payment_method ?? '-'})</span><span>{rupiah(pay?.tendered ?? pay?.amount ?? s.total)}</span></div>
@@ -106,14 +102,13 @@ export default async function PrintDoc({ params, searchParams }: { params: Promi
         </div>
         {doc === 'invoice' ? (
           <>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr><th style={th}>No</th><th style={th}>SKU</th><th style={th}>Nama barang</th><th style={{ ...th, textAlign: 'right' }}>Jml</th><th style={{ ...th, textAlign: 'right' }}>Harga</th><th style={{ ...th, textAlign: 'right' }}>Diskon</th><th style={{ ...th, textAlign: 'right' }}>Total</th></tr></thead><tbody>
-              {items.map((i, n) => (<tr key={i.id}><td style={td}>{n + 1}</td><td style={td}>{i.products?.sku}</td><td style={td}>{i.products?.name}{i.inventory_units && <div style={{ fontSize: 11, color: '#555' }}>{i.inventory_units.internal_asset_code}{i.inventory_units.serial_number ? ` · SN ${i.inventory_units.serial_number}` : ''}</div>}</td><td style={{ ...td, textAlign: 'right' }}>{i.qty}</td><td style={{ ...td, textAlign: 'right' }}>{rupiah(i.unit_price)}</td><td style={{ ...td, textAlign: 'right' }}>{rupiah(i.discount)}</td><td style={{ ...td, textAlign: 'right' }}>{rupiah(i.line_total)}</td></tr>))}
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr><th style={th}>No</th><th style={th}>SKU</th><th style={th}>Nama barang</th><th style={{ ...th, textAlign: 'right' }}>Jml</th><th style={{ ...th, textAlign: 'right' }}>Harga satuan</th><th style={{ ...th, textAlign: 'right' }}>Subtotal</th></tr></thead><tbody>
+              {items.map((i, n) => (<tr key={i.id}><td style={td}>{n + 1}</td><td style={td}>{i.products?.sku}</td><td style={td}>{i.products?.name}{i.inventory_units && <div style={{ fontSize: 11, color: '#555' }}>{i.inventory_units.internal_asset_code}{i.inventory_units.serial_number ? ` · SN ${i.inventory_units.serial_number}` : ''}</div>}</td><td style={{ ...td, textAlign: 'right' }}>{i.qty}</td><td style={{ ...td, textAlign: 'right' }}>{rupiah(i.unit_price)}</td><td style={{ ...td, textAlign: 'right' }}>{rupiah(i.line_total)}</td></tr>))}
             </tbody></table>
             <div style={{ marginLeft: 'auto', width: 260, marginTop: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Subtotal</span><span>{rupiah(s.subtotal)}</span></div>
-              {itemDisc > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Diskon item</span><span>- {rupiah(itemDisc)}</span></div>}
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Diskon{dPct}</span><span>- {rupiah(txDisc)}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Pajak{tPct}</span><span>{Number(s.tax) > 0 ? '+ ' : ''}{rupiah(s.tax)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Diskon{Number(s.discount_percent) > 0 ? ` (${pct(s.discount_percent)})` : ''}</span><span>- {rupiah(s.discount)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Pajak{Number(s.tax_percent) > 0 ? ` (${pct(s.tax_percent)})` : ''}</span><span>{rupiah(s.tax)}</span></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 15, borderTop: '1px solid #000', marginTop: 4, paddingTop: 4 }}><span>Total</span><span>{rupiah(s.total)}</span></div>
               {pay?.tendered != null && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Dibayar</span><span>{rupiah(pay.tendered)}</span></div>}
               {pay?.change_amount != null && Number(pay.change_amount) > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Kembalian</span><span>{rupiah(pay.change_amount)}</span></div>}

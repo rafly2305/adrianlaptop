@@ -1,16 +1,15 @@
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { requirePage } from '@/lib/context';
 import { run } from '@/lib/db';
 import { can } from '@/lib/permissions';
 import { CONDITION, MOVEMENT, SERIAL_STATUS, UNIT_STATUS } from '@/lib/labels';
 import { fdate, fdatetime, nf, safeLike } from '@/lib/format';
-import { Badge, Chip, DemoTag, Empty, Pagination, PageHeader, StatusBadge, TableWrap, one, pageNum } from '@/components/ui';
+import { Badge, Chip, Empty, Pagination, PageHeader, StatusBadge, TableWrap, one, pageNum } from '@/components/ui';
 import { PrintButton } from '@/components/PrintButton';
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 const PS = 25;
-const VIEWS = [['units', 'Unit'], ['products', 'Produk'], ['low', 'Stok menipis'], ['movements', 'Riwayat stok'], ['transfers', 'Transfer']] as const;
+const VIEWS = [['units', 'Unit & nomor seri'], ['products', 'Produk'], ['low', 'Stok menipis'], ['movements', 'Riwayat stok']] as const;
 
 export default async function InventoryPage({ searchParams }: { searchParams: SP }) {
   const ctx = await requirePage('inventory.view');
@@ -29,7 +28,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: SP
     let pids: string[] = [];
     if (q) pids = (await run<{ id: string }[]>('cari produk', () => sb.from('products').select('id').or(`name.ilike.%${q}%,sku.ilike.%${q}%,brand.ilike.%${q}%,model.ilike.%${q}%`).limit(300))).map((p) => p.id);
     let query = sb.from('inventory_units')
-      .select('id,internal_asset_code,serial_number,serial_status,status,condition,received_at,branches(name,is_demo),products!inner(sku,name,category_id,needs_verification)', { count: 'exact' })
+      .select('id,internal_asset_code,serial_number,serial_status,status,condition,received_at,products!inner(sku,name,category_id,needs_verification)', { count: 'exact' })
       .eq('data_origin', scope).in('branch_id', ids).order('internal_asset_code').range(from, to);
     if (q) query = query.or(`serial_number.ilike.%${q}%,internal_asset_code.ilike.%${q}%${pids.length ? `,product_id.in.(${pids.join(',')})` : ''}`);
     if (status) query = query.eq('status', status); else query = query.eq('archived', false);
@@ -37,16 +36,15 @@ export default async function InventoryPage({ searchParams }: { searchParams: SP
     if (cat) query = query.eq('products.category_id', cat);
     const { data, count, error } = await query;
     if (error) throw Object.assign(new Error('Gagal memuat unit'), { cause: error });
-    const rows = (data ?? []) as unknown as { id: string; internal_asset_code: string; serial_number: string | null; serial_status: string; status: string; condition: string; received_at: string | null; branches: { name: string; is_demo: boolean } | null; products: { sku: string; name: string; needs_verification: boolean } | null }[];
+    const rows = (data ?? []) as unknown as { id: string; internal_asset_code: string; serial_number: string | null; serial_status: string; status: string; condition: string; received_at: string | null; products: { sku: string; name: string; needs_verification: boolean } | null }[];
     body = (<>
       {rows.length === 0 ? <Empty title="Tidak ada unit yang cocok" hint="Ubah filter atau pencarian." /> : (
-        <TableWrap><table className="tbl"><thead><tr><th>Kode unit</th><th>Nomor seri</th><th>Produk</th><th>Cabang</th><th>Status</th><th>Kondisi</th><th>Masuk</th></tr></thead><tbody>
+        <TableWrap><table className="tbl"><thead><tr><th>Kode unit</th><th>Nomor seri</th><th>Produk</th><th>Status</th><th>Kondisi</th><th>Masuk</th></tr></thead><tbody>
           {rows.map((u) => (
             <tr key={u.id}>
               <td><Link href={`/inventory/units/${u.id}`} className="text-brand underline"><Chip>{u.internal_asset_code}</Chip></Link></td>
               <td>{u.serial_number ? <><Chip>{u.serial_number}</Chip> <StatusBadge map={SERIAL_STATUS} value={u.serial_status} /></> : <span className="text-warn text-xs">belum ada nomor seri</span>}</td>
               <td><div>{u.products?.name}</div><div className="text-xs text-ink-500">{u.products?.sku}{u.products?.needs_verification && ' · spesifikasi perlu verifikasi'}</div></td>
-              <td>{u.branches?.name} {u.branches?.is_demo && <DemoTag />}</td>
               <td><StatusBadge map={UNIT_STATUS} value={u.status} /></td>
               <td>{CONDITION[u.condition] ?? u.condition}</td><td>{fdate(u.received_at)}</td>
             </tr>))}
@@ -89,23 +87,19 @@ export default async function InventoryPage({ searchParams }: { searchParams: SP
     const rows = (data ?? []) as unknown as { id: string; type: string; qty: number; reason: string | null; created_at: string; products: { name: string } | null; branches: { name: string } | null; inventory_units: { internal_asset_code: string } | null; profiles: { full_name: string } | null }[];
     body = (<>
       {rows.length === 0 ? <Empty title="Belum ada pergerakan stok" /> : (
-        <TableWrap><table className="tbl"><thead><tr><th>Waktu</th><th>Jenis</th><th>Produk</th><th>Unit</th><th>Cabang</th><th className="text-right">Jumlah</th><th>Keterangan</th><th>Oleh</th></tr></thead><tbody>
-          {rows.map((m) => (<tr key={m.id}><td>{fdatetime(m.created_at)}</td><td>{MOVEMENT[m.type] ?? m.type}</td><td>{m.products?.name}</td><td>{m.inventory_units ? <Chip>{m.inventory_units.internal_asset_code}</Chip> : '-'}</td><td>{m.branches?.name}</td>
+        <TableWrap><table className="tbl"><thead><tr><th>Waktu</th><th>Jenis</th><th>Produk</th><th>Unit</th><th className="text-right">Jumlah</th><th>Keterangan</th><th>Oleh</th></tr></thead><tbody>
+          {rows.map((m) => (<tr key={m.id}><td>{fdatetime(m.created_at)}</td><td>{MOVEMENT[m.type] ?? m.type}</td><td>{m.products?.name}</td><td>{m.inventory_units ? <Chip>{m.inventory_units.internal_asset_code}</Chip> : '-'}</td>
             <td className={`text-right ${m.qty < 0 ? 'text-bad' : m.qty > 0 ? 'text-ok' : ''}`}>{m.qty > 0 ? '+' : ''}{m.qty}</td><td className="max-w-xs truncate">{m.reason ?? '-'}</td><td>{m.profiles?.full_name ?? '—'}</td></tr>))}
         </tbody></table></TableWrap>)}
       <Pagination page={page} pageSize={PS} total={count ?? 0} basePath="/inventory" params={params} />
     </>);
   }
 
-  if (view === 'transfers') {
-    redirect('/inventory/transfers');
-  }
-
   return (
     <>
-      <PageHeader title="Inventory" sub={`${ctx.branch?.name ?? 'Semua cabang'}`}
+      <PageHeader title="Produk, Unit & Nomor Seri" sub={`Data inventaris toko ${ctx.branch?.name ?? 'Cidodol'}`}
         actions={<>
-          {write && <Link className="btn-primary" href="/inventory/receive">Terima barang</Link>}
+          {write && <Link className="btn-primary" href="/inventory/receive">Barang masuk</Link>}
           {write && <Link className="btn-ghost" href="/inventory/products/new">Produk baru</Link>}
           {write && <Link className="btn-ghost" href="/inventory/import">Impor CSV</Link>}
           <a className="btn-ghost" href={`/api/export/inventory`}>Ekspor CSV</a>
