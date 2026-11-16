@@ -1,8 +1,8 @@
 -- LANGKAH 4 dari 4 — Data awal Cidodol: lokasi, kategori, 30 produk, 49 unit laptop/PC, 46 pcs aksesori, dan HARGA ESTIMASI barang bekas.
 -- Idempoten (aman diulang). Tidak ada data demo.
 
--- ======== 00_base.sql ========
--- 00_base.sql (dibuat oleh scripts/gen_seed.py) — idempoten
+-- ======== Bagian A: dasar (lokasi, kategori, pengaturan) ========
+-- 00_base.sql — idempoten
 begin;
 insert into branches(code,name,city,is_demo,data_origin) values ('CDL','Cidodol','Jakarta',false,'real') on conflict (code) do nothing;
 insert into categories(name,default_tracking) values ('Laptop','serialized') on conflict (name) do nothing;
@@ -14,8 +14,8 @@ insert into app_settings(key,value) values ('payment_methods','["Tunai","Non Tun
 insert into app_settings(key,value) values ('company_name','"Adrian Laptop Store"'::jsonb) on conflict (key) do nothing;
 commit;
 
--- ======== 01_cidodol.sql ========
--- 01_cidodol.sql (dibuat oleh scripts/gen_seed.py) — inventory NYATA Cidodol dari daftar sumber. Idempoten.
+-- ======== Bagian B: inventaris Cidodol ========
+-- 01_cidodol.sql — inventory NYATA Cidodol dari daftar sumber. Idempoten.
 -- Tidak ada harga/pemasok/garansi/serial pabrikan: data tersebut tidak diberikan. Tidak ada transaksi.
 begin;
 insert into products(sku,name,original_name,brand,model,category_id,tracking,processor,ram_gb,storage,touchscreen,specs,needs_verification,source_ref) select 'LTP-0001','Lenovo ThinkPad L14 Intel Core i5-10310U 8GB/256 Touchscreen','LENOVO THINKPAD L14 i5-10310U 8/256 TOUCHSCREEN','Lenovo','ThinkPad L14',c.id,'serialized','Intel Core i5-10310U',8,'256 GB',true,'{"sumber": "daftar inventory Cidodol"}'::jsonb,false,'1,2' from categories c where c.name='Laptop' on conflict (sku) do nothing;
@@ -163,8 +163,8 @@ insert into stock_movements(id,branch_id,product_id,type,qty,reason) select 'bd2
 insert into doc_counters(key,n) values ('UNIT-CDL',49) on conflict (key) do update set n = greatest(doc_counters.n,49);
 commit;
 
--- ======== 02_harga_estimasi.sql ========
--- 02_harga_estimasi.sql (dibuat oleh scripts/gen_seed.py) — harga jual ESTIMASI barang bekas; idempoten.
+-- ======== Bagian C: harga estimasi ========
+-- 02_harga_estimasi.sql — harga jual ESTIMASI barang bekas; idempoten.
 -- Hanya mengisi harga yang kosong atau yang masih berstatus 'estimasi'; harga yang sudah diisi manual TIDAK ditimpa.
 begin;
 with est(sku, price) as (values ('LTP-0001', 5000000), ('LTP-0002', 4700000), ('LTP-0003', 4200000), ('LTP-0023', 4400000), ('LTP-0004', 4500000), ('LTP-0005', 6500000), ('LTP-0007', 3400000), ('LTP-0008', 1400000), ('LTP-0009', 1700000), ('LTP-0010', 1400000), ('LTP-0011', 2200000), ('LTP-0012', 2400000), ('LTP-0013', 1900000), ('LTP-0014', 4200000), ('LTP-0015', 3000000), ('AIO-0001', 2200000), ('LTP-0016', 1800000), ('LTP-0017', 1800000), ('LTP-0018', 4200000), ('LTP-0019', 2000000), ('LTP-0020', 1500000), ('LTP-0021', 3200000), ('LTP-0022', 5500000), ('ACC-0001', 30000), ('ACC-0002', 50000), ('ACC-0003', 60000), ('ACC-0004', 20000), ('ACC-0005', 30000), ('ACC-0006', 150000), ('ACC-0007', 15000))

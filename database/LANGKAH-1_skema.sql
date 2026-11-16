@@ -1,4 +1,4 @@
--- LANGKAH 1 dari 4 — Skema, keamanan (RLS), fungsi transaksi, audit. (= migrations 0001 + 0002 + 0003 + 0004)
+-- LANGKAH 1 dari 4 — Skema, keamanan (RLS), fungsi transaksi, audit.
 -- Jalankan SEKALI di Supabase -> SQL Editor pada project yang KOSONG. Tunggu sukses sebelum langkah 2.
 
 -- ======== 0001_schema.sql ========
@@ -895,36 +895,6 @@ begin
   end if;
 end $$;
 
--- ============ Reset data demo (tidak menyentuh data 'real' / Cidodol) ============
-create function _reset_demo() returns void
-language plpgsql security definer set search_path = public as $$
-begin
-  delete from payments where data_origin = 'demo';
-  delete from returns where data_origin = 'demo';
-  delete from sale_items where sale_id in (select id from sales where data_origin = 'demo');
-  delete from warranties where data_origin = 'demo';
-  delete from service_ticket_history where ticket_id in (select id from service_tickets where data_origin = 'demo');
-  delete from service_tickets where data_origin = 'demo';
-  delete from sales where data_origin = 'demo';
-  delete from unit_inspections where unit_id in (select id from inventory_units where data_origin = 'demo');
-  delete from stock_transfer_items where transfer_id in (select id from stock_transfers where data_origin = 'demo');
-  delete from stock_transfers where data_origin = 'demo';
-  delete from stock_movements where data_origin = 'demo';
-  delete from inventory_balances where branch_id in (select id from branches where data_origin = 'demo');
-  delete from inventory_units where data_origin = 'demo';
-  delete from customers where data_origin = 'demo';
-  delete from audit_logs where branch_id in (select id from branches where data_origin = 'demo');
-  delete from doc_counters where key ~ '-(CLD|MRY|PMG|CSK|BTR)(-|$)';
-end $$;
-
-create function reset_demo_data() returns void
-language plpgsql security definer set search_path = public as $$
-begin
-  if not is_super() then raise exception 'forbidden_role' using errcode = '42501'; end if;
-  perform _reset_demo();
-  perform log_audit(null, 'demo.reset', 'system', null, '{}'::jsonb);
-end $$;
-
 -- ============ Hak eksekusi ============
 revoke execute on all functions in schema public from public, anon;
 grant execute on function auth_role(), is_super(), can_access_branch(uuid), has_role(app_role[]), shares_branch(uuid), ops_role(),
@@ -935,8 +905,8 @@ grant execute on function receive_unit(uuid, uuid, text, unit_condition, date, n
   create_sale(uuid, jsonb, jsonb, text, numeric, text), void_sale(uuid, text), return_sale_item(uuid, int, text, numeric),
   create_transfer(uuid, uuid, jsonb, text), receive_transfer(uuid), cancel_transfer(uuid, text),
   create_ticket(uuid, jsonb, uuid, uuid, text, text, date, uuid),
-  update_ticket(uuid, ticket_status, text, text, uuid, date, text, text), reset_demo_data() to authenticated;
--- assert_access, log_audit, next_number, _reset_demo: hanya dipanggil dari dalam fungsi security definer.
+  update_ticket(uuid, ticket_status, text, text, uuid, date, text, text) to authenticated;
+-- assert_access, log_audit, next_number: hanya dipanggil dari dalam fungsi security definer.
 
 -- ======== 0004_audit_triggers.sql ========
 -- 0004_audit_triggers.sql — audit perubahan data master & pengaturan (yang ditulis langsung, bukan lewat RPC).

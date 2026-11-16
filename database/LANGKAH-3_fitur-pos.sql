@@ -1,9 +1,9 @@
--- LANGKAH 3 dari 4 — Inventaris lengkap + POS (diskon/pajak %, 4 metode pembayaran, anti transaksi ganda) + bucket foto. (= migrations 0007 + 0008)
+-- LANGKAH 3 dari 4 (instalasi baru) — Inventaris lengkap + POS (diskon/pajak %, 4 metode pembayaran, anti transaksi ganda) + bucket foto.
 
--- ======== 0007_inventory_pos.sql ========
--- 0007_inventory_pos.sql — Inventory lengkap (barang masuk/keluar, stok opname, transfer bertahap, riwayat stok before/after)
--- dan POS (foto produk, pembayaran tunai/non-tunai, pajak, dokumen). Aman dijalankan pada data yang sudah ada (tidak menghapus data).
--- Jalankan SETELAH 0006_transfer_pending.sql.
+-- ======== Bagian A: inventaris & POS ========
+-- Inventory lengkap (barang masuk/keluar, stok opname, transfer bertahap, riwayat stok before/after)
+-- dan POS (foto produk, pembayaran tunai/non-tunai, pajak, dokumen).
+-- Dijalankan SETELAH Langkah 2.
 
 -- ===== Kolom baru =====
 alter table stock_movements add column if not exists stock_before int, add column if not exists stock_after int,
@@ -377,16 +377,13 @@ grant execute on function receive_goods(uuid, uuid, text, unit_condition, date, 
   opname_confirm(uuid), opname_cancel(uuid), request_transfer(uuid, uuid, jsonb, text), dispatch_transfer(uuid),
   cancel_transfer(uuid, text), create_sale_pos(uuid, jsonb, jsonb, text, numeric, text, text, numeric, text) to authenticated;
 
--- ======== 0008_single_location_pos.sql ========
--- 0008_single_location_pos.sql
+-- ======== Bagian B: satu lokasi + POS persen/pembayaran ========
 -- Tujuan:
---   1. Aplikasi hanya untuk satu lokasi operasional (Cidodol): data demo & cabang demo dibersihkan dengan aman.
+--   1. (Instalasi baru: tidak ada data demo yang perlu dibersihkan.)
 --   2. POS: diskon & pajak dalam PERSEN, dihitung di database (pembulatan ke rupiah), nominal tersimpan = nominal tampil.
 --   3. POS: harga satuan selalu diambil dari database (klien tidak bisa memanipulasi harga).
 --   4. POS: metode Tunai / QRIS / Transfer Bank / Kartu Debit (E-Wallet dihapus), pembayaran non-tunai wajib diverifikasi kasir.
 --   5. POS: kunci idempotensi (request_id) agar klik ganda / kirim ulang tidak membuat transaksi ganda.
--- Aman dijalankan pada data yang sudah ada. Data Cidodol (data_origin = 'real') TIDAK disentuh.
--- Jalankan SETELAH 0007_inventory_pos.sql, satu kali, lewat Supabase -> SQL Editor.
 
 begin;
 
@@ -408,19 +405,7 @@ insert into app_settings(key, value) values ('qris_image_url', '""'::jsonb) on c
 insert into app_settings(key, value) values ('qris_merchant_name', '""'::jsonb) on conflict (key) do nothing;
 insert into app_settings(key, value) values ('bank_accounts', '[]'::jsonb) on conflict (key) do nothing;
 
--- ===== 3. Pembersihan data demo (hanya baris data_origin = 'demo' dan cabang demo) =====
--- Stok opname demo dihapus lebih dulu karena merujuk unit demo.
-delete from stock_opname_items where opname_id in (select id from stock_opnames where data_origin = 'demo');
-delete from stock_opnames where data_origin = 'demo';
-select _reset_demo();   -- transaksi, stok, unit, pelanggan, tiket, garansi, transfer milik cabang demo
-update profiles set default_branch_id = null where default_branch_id in (select id from branches where is_demo);
-delete from user_branch_access where branch_id in (select id from branches where is_demo);
-delete from audit_logs where branch_id in (select id from branches where is_demo);
-delete from branches where is_demo;
-drop function if exists reset_demo_data();
-drop function if exists _reset_demo();
-
--- ===== 4. Transaksi POS baru =====
+-- ===== 3. Transaksi POS baru =====
 drop function if exists create_sale_pos(uuid, jsonb, jsonb, text, numeric, text, text, numeric, text);
 
 create or replace function create_sale_pos(
@@ -520,8 +505,4 @@ revoke execute on function create_sale(uuid, jsonb, jsonb, text, numeric, text) 
 
 commit;
 
--- Cek hasil (jalankan manual):
---   select code, name, is_demo from branches;                         -- hanya Cidodol
---   select count(*) from inventory_units where data_origin = 'demo';  -- 0
---   select sku, name, default_price from products where default_price is null or default_price = 0;  -- sebaiknya 0 baris
 

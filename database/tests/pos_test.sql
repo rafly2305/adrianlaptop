@@ -1,4 +1,4 @@
--- Tes aturan POS (create_sale_pos). JALANKAN di staging / SQL Editor SETELAH migration 0001-0008 + seed 00/01.
+-- Tes aturan POS (create_sale_pos). OPSIONAL: jalankan di project Supabase UJI (bukan produksi) SETELAH LANGKAH 1-4.
 -- Seluruh skrip di dalam transaksi dan di-ROLLBACK di akhir (data Cidodol tidak berubah).
 -- Setiap blok memakai ASSERT; kegagalan = error. BELUM dijalankan di lingkungan penyusun (tidak ada PostgreSQL).
 begin;
